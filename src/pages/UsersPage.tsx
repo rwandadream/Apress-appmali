@@ -12,7 +12,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-const UsersPage = () => {
+interface UsersPageProps {
+  hideHeader?: boolean;
+}
+
+const UsersPage = ({ hideHeader = false }: UsersPageProps) => {
   const { users, user: currentUser, addUser, deleteUser } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,10 +39,55 @@ const UsersPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Gestion des utilisateurs"
-        description={`${users.length} utilisateurs enregistrés`}
-        action={
+      {!hideHeader && (
+        <PageHeader
+          title="Gestion des utilisateurs"
+          description={`${users.length} utilisateurs enregistrés`}
+          action={
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-2" />Nouvel utilisateur</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Nouvel utilisateur</DialogTitle>
+                </DialogHeader>
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Nom</Label>
+                      <Input value={nom} onChange={(e) => setNom(e.target.value)} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Prénom</Label>
+                      <Input value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Email</Label>
+                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Rôle</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="superviseur">Superviseur</SelectItem>
+                        <SelectItem value="employee">Employé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Mot de passe par défaut : employe123</p>
+                  <Button type="submit" className="w-full">Créer le compte</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
+      )}
+
+      {hideHeader && (
+        <div className="flex justify-end">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />Nouvel utilisateur</Button>
@@ -77,8 +126,8 @@ const UsersPage = () => {
               </form>
             </DialogContent>
           </Dialog>
-        }
-      />
+        </div>
+      )}
 
       <div className="glass-card rounded-xl overflow-hidden">
         <Table>

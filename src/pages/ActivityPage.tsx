@@ -15,15 +15,21 @@ const actionColors: Record<string, string> = {
   "Client supprimé": "bg-destructive/10 text-destructive",
 };
 
-const ActivityPage = () => {
+interface ActivityPageProps {
+  hideHeader?: boolean;
+}
+
+const ActivityPage = ({ hideHeader = false }: ActivityPageProps) => {
   const { activityLog } = useAuth();
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Journal d'activité"
-        description="Historique de toutes les actions effectuées"
-      />
+      {!hideHeader && (
+        <PageHeader
+          title="Journal d'activité"
+          description="Historique de toutes les actions effectuées"
+        />
+      )}
 
       {activityLog.length === 0 ? (
         <Card className="glass-card">

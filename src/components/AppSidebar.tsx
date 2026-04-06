@@ -19,10 +19,6 @@ const AppSidebar = () => {
     { to: "/services", icon: Briefcase, label: "Services" },
     { to: "/invoices", icon: FileText, label: "Factures" },
     { to: "/payments", icon: CreditCard, label: "Paiements" },
-    ...(isSuperviseur ? [
-      { to: "/users", icon: UserCog, label: "Utilisateurs" },
-      { to: "/activity", icon: Activity, label: "Activité" },
-    ] : []),
     { to: "/settings", icon: Settings, label: "Paramètres" },
   ];
 

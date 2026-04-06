@@ -1,140 +1,160 @@
-import { DollarSign, FileText, Users, TrendingUp, AlertTriangle } from "lucide-react";
-import StatCard from "@/components/StatCard";
+import { useMemo } from "react";
+import { 
+  TrendingUp, 
+  Users, 
+  FileText, 
+  CreditCard, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useData } from "@/contexts/DataContext";
 import { Badge } from "@/components/ui/badge";
 
-const monthlyRevenue = [
-  { month: "Jan", revenue: 4200000 },
-  { month: "Fév", revenue: 3800000 },
-  { month: "Mar", revenue: 5100000 },
-  { month: "Avr", revenue: 4700000 },
-  { month: "Mai", revenue: 6200000 },
-  { month: "Jun", revenue: 5500000 },
-];
-
-const serviceDistribution = [
-  { name: "Gestion RH", value: 40, color: "hsl(220, 72%, 33%)" },
-  { name: "Admin", value: 30, color: "hsl(355, 82%, 52%)" },
-  { name: "Social", value: 20, color: "hsl(38, 92%, 50%)" },
-  { name: "Autres", value: 10, color: "hsl(142, 71%, 45%)" },
-];
-
-const overdueInvoices = [
-  { id: "APM-2026-012", client: "Société Alpha", amount: "1 250 000 FCFA", days: 15 },
-  { id: "APM-2026-018", client: "Enterprise Beta", amount: "850 000 FCFA", days: 8 },
-  { id: "APM-2026-021", client: "Groupe Gamma", amount: "2 100 000 FCFA", days: 22 },
-];
-
 const Dashboard = () => {
+  const { stats, invoices, clients } = useData();
+
+  const recentInvoices = useMemo(() => {
+    return invoices
+      .filter(i => !i.archived)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [invoices]);
+
+  const pendingAmount = useMemo(() => {
+    return invoices
+      .filter(i => i.status !== "payée" && !i.archived && i.type === "facture")
+      .reduce((acc, curr) => acc + (curr.montantTTC - curr.paye), 0);
+  }, [invoices]);
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Tableau de bord" description="Vue d'ensemble de votre activité" />
+      <PageHeader 
+        title="Tableau de bord" 
+        description="Vue d'ensemble de la performance d'Apress Mali" 
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* KPI Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Revenu Total"
-          value="29 500 000 FCFA"
-          change="+12.5% ce mois"
-          changeType="positive"
-          icon={DollarSign}
+          title="Chiffre d'affaires"
+          value={`${stats.totalFacture.toLocaleString()} FCFA`}
+          icon={TrendingUp}
+          trend={{ value: "Total facturé", isPositive: true }}
         />
         <StatCard
-          title="Factures en attente"
-          value="14"
-          change="3 en retard"
-          changeType="negative"
-          icon={FileText}
+          title="Recouvrement"
+          value={`${stats.totalEncaisse.toLocaleString()} FCFA`}
+          icon={CheckCircle2}
+          trend={{ value: `${stats.tauxRecouvrement.toFixed(1)}% encaissé`, isPositive: true }}
+        />
+        <StatCard
+          title="Reste à percevoir"
+          value={`${stats.resteARecouvrer.toLocaleString()} FCFA`}
+          icon={Clock}
+          trend={{ value: "Factures en attente", isPositive: false }}
+          className="border-l-4 border-l-warning"
         />
         <StatCard
           title="Clients Actifs"
-          value="48"
-          change="+5 ce mois"
-          changeType="positive"
+          value={clients.filter(c => !c.archived).length.toString()}
           icon={Users}
-        />
-        <StatCard
-          title="Taux d'encaissement"
-          value="87.3%"
-          change="+2.1% vs mois dernier"
-          changeType="positive"
-          icon={TrendingUp}
+          trend={{ value: "Base client", isPositive: true }}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Activity / Invoices */}
         <Card className="lg:col-span-2 glass-card">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Évolution des Revenus</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold">Factures Récentes</CardTitle>
+            <Badge variant="outline" className="font-normal">Dernières transactions</Badge>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 90%)" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
-                <Tooltip formatter={(v: number) => `${v.toLocaleString()} FCFA`} />
-                <Bar dataKey="revenue" fill="hsl(220, 72%, 33%)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Répartition Services</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={serviceDistribution} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={4}>
-                  {serviceDistribution.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 mt-2">
-              {serviceDistribution.map((s) => (
-                <div key={s.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="text-muted-foreground">{s.name}</span>
-                  </div>
-                  <span className="font-medium">{s.value}%</span>
+            <div className="space-y-4">
+              {recentInvoices.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-sm">
+                  Aucune facture enregistrée.
                 </div>
-              ))}
+              ) : (
+                recentInvoices.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/5 group hover:bg-muted/10 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-full ${inv.status === 'payée' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                        {inv.status === 'payée' ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{inv.numero}</p>
+                        <p className="text-xs text-muted-foreground">{inv.clientName}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">{inv.montantTTC.toLocaleString()} FCFA</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(inv.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <Card className="glass-card">
-        <CardHeader className="flex flex-row items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-warning" />
-          <CardTitle className="text-base font-semibold">Factures en retard</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="divide-y divide-border">
-            {overdueInvoices.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between py-3">
-                <div>
-                  <span className="font-medium text-sm">{inv.id}</span>
-                  <p className="text-xs text-muted-foreground">{inv.client}</p>
+        {/* Recap & Health */}
+        <div className="space-y-6">
+          <Card className="glass-card overflow-hidden">
+            <CardHeader className="bg-primary/5 pb-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-primary">
+                <AlertCircle className="h-4 w-4" /> Santé Financière
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">Taux de recouvrement</span>
+                  <span className="font-bold">{stats.tauxRecouvrement.toFixed(1)}%</span>
                 </div>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-semibold text-sm">{inv.amount}</span>
-                  <Badge variant="destructive" className="text-xs">
-                    {inv.days}j de retard
-                  </Badge>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-1000" 
+                    style={{ width: `${stats.tauxRecouvrement}%` }}
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="pt-2 border-t space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Facturé ce mois</span>
+                  <span className="text-sm font-bold">En cours...</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Délai moyen paiement</span>
+                  <span className="text-sm font-bold">14 jours</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-primary text-primary-foreground shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <CreditCard className="h-6 w-6" />
+                </div>
+                <ArrowUpRight className="h-5 w-5 opacity-50" />
+              </div>
+              <p className="text-white/70 text-sm font-medium">À recouvrer</p>
+              <h2 className="text-2xl font-black mt-1">{stats.resteARecouvrer.toLocaleString()} FCFA</h2>
+              <p className="text-[10px] mt-4 opacity-70 italic text-white/80">
+                Pensez à relancer les clients en attente de paiement.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

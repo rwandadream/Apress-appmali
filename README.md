@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Apress Trace Connect – ERP/CRM
 
 TODO: Document your project here
