@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import Reports from "@/pages/Reports";
 import Clients from "@/pages/Clients";
 import Services from "@/pages/Services";
 import Invoices from "@/pages/Invoices";
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/reports" element={<Reports />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/services" element={<Services />} />
                 <Route path="/invoices" element={<Invoices />} />

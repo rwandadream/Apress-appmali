@@ -24,7 +24,6 @@ export interface Client {
   secteur: string;
   archived?: boolean;
 }
-
 export interface InvoiceItem {
   serviceId: string;
   serviceName: string;
@@ -38,6 +37,9 @@ export interface Invoice {
   numero: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string;
+  clientTelephone?: string;
+  clientAdresse?: string;
   date: string;
   echeance: string;
   items: InvoiceItem[];
@@ -49,6 +51,20 @@ export interface Invoice {
   status: "payée" | "partielle" | "non_payée";
   type: "facture" | "devis";
   archived?: boolean;
+  paymentMethod?: string;
+  paymentReference?: string;
+}
+
+export interface AppSettings {
+  defaultTva: number;
+  currency: string;
+  companyName: string;
+  companyAddress: string;
+  companyNif: string;
+  companyRCCM: string;
+  bankDetails: string;
+  mobileMoneyDetails: string;
+  legalMentions: string;
 }
 
 export interface Payment {
@@ -58,12 +74,6 @@ export interface Payment {
   date: string;
   method: string;
   reference?: string;
-}
-
-export interface AppSettings {
-  defaultTva: number;
-  currency: string;
-  companyName: string;
 }
 
 interface DataContextType {
@@ -78,6 +88,7 @@ interface DataContextType {
   addClient: (client: Omit<Client, "id">) => void;
   addInvoice: (invoice: Omit<Invoice, "id" | "numero">) => void;
   updateInvoiceStatus: (id: string, paye: number) => void;
+  updateService: (id: string, service: Partial<Service>) => void;
   addPayment: (payment: Omit<Payment, "id">) => void;
   archiveItem: (type: "clients" | "services" | "invoices", id: string) => void;
   updateSettings: (settings: AppSettings) => void;
@@ -170,6 +181,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addService = (s: Omit<Service, "id">) => setServices([...services, { ...s, id: crypto.randomUUID() }]);
   const addClient = (c: Omit<Client, "id">) => setClients([...clients, { ...c, id: crypto.randomUUID() }]);
   
+  const updateService = (id: string, updatedService: Partial<Service>) => {
+    setServices(prev => prev.map(s => s.id === id ? { ...s, ...updatedService } : s));
+  };
+
   const addInvoice = (inv: Omit<Invoice, "id" | "numero">) => {
     const prefix = inv.type === "facture" ? "FAC" : "DEV";
     const count = invoices.filter(i => i.type === inv.type).length + 1;
@@ -241,7 +256,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider value={{ 
       categories, services, clients, invoices, payments, settings, stats,
       addCategory, addService, addClient, addInvoice, updateInvoiceStatus, 
-      addPayment, archiveItem, updateSettings, exportData, importData
+      updateService, addPayment, archiveItem, updateSettings, exportData, importData
     }}>
       {children}
     </DataContext.Provider>

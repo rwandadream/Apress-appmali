@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, CreditCard, Settings, LogOut,
-  ChevronLeft, ChevronRight, Briefcase, UserCog, Activity,
+  ChevronLeft, ChevronRight, Briefcase, UserCog, Activity, BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,11 +15,16 @@ const AppSidebar = () => {
 
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Tableau de bord" },
+    { to: "/reports", icon: BarChart3, label: "Rapports" },
     { to: "/clients", icon: Users, label: "Clients" },
     { to: "/services", icon: Briefcase, label: "Services" },
     { to: "/invoices", icon: FileText, label: "Factures" },
     { to: "/payments", icon: CreditCard, label: "Paiements" },
-    { to: "/settings", icon: Settings, label: "Paramètres" },
+  ];
+
+  const adminItems = [
+    { to: "/users", icon: UserCog, label: "Utilisateurs" },
+    { to: "/activity", icon: Activity, label: "Journal d'activité" },
   ];
 
   const handleLogout = () => {
@@ -47,36 +52,51 @@ const AppSidebar = () => {
       )}
 
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.to);
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          );
-        })}
+        <div className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.to;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            );
+          })}
+        </div>
       </nav>
 
-      <div className="px-2 pb-4 space-y-1">
+      <div className="px-2 pb-4 space-y-1 border-t border-sidebar-border/50 pt-4">
+        <NavLink
+          to="/settings"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            location.pathname === "/settings"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          }`}
+        >
+          <Settings className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span>Paramètres</span>}
+        </NavLink>
+        
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground w-full transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground w-full transition-colors mt-2"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           {!collapsed && <span>Réduire</span>}
         </button>
+        
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground w-full transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-destructive/70 hover:bg-destructive/10 hover:text-destructive w-full transition-colors"
         >
           <LogOut className="h-5 w-5" />
           {!collapsed && <span>Déconnexion</span>}

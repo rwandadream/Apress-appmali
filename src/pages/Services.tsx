@@ -1,13 +1,16 @@
-import { useState, useMemo } from "react";
-import { Plus, Briefcase, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, MoreVertical, Briefcase, Tag, Info } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -26,11 +29,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useData, Service } from "@/contexts/DataContext";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 8;
 
+const serviceSchema = z.object({
+  nom: z.string().min(3, "Le nom doit avoir au moins 3 caractères"),
+  categorieId: z.string().min(1, "Catégorie requise"),
+  prix: z.number().min(0, "Le prix ne peut pas être négatif"),
+  description: z.string().optional(),
+});
+
+type ServiceFormValues = z.infer<typeof serviceSchema>;
+
 const Services = () => {
-  const { categories, services, addService, deleteService, archiveItem } = useData();
+  const { categories, services, addService, updateService, archiveItem } = useData();
   const { toast } = useToast();
   
   // UI State
@@ -41,11 +54,10 @@ const Services = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Form State
-  const [nom, setNom] = useState("");
-  const [categorieId, setCategorieId] = useState("");
-  const [prix, setPrix] = useState("");
-  const [description, setDescription] = useState("");
+  const form = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: { nom: "", categorieId: "", prix: 0, description: "" },
+  });
 
   // Logic: Filtering & Searching
   const filteredServices = useMemo(() => {
@@ -66,28 +78,28 @@ const Services = () => {
 
   const handleOpenAdd = () => {
     setEditingService(null);
-    setNom(""); setCategorieId(""); setPrix(""); setDescription("");
+    form.reset({ nom: "", categorieId: "", prix: 0, description: "" });
     setServiceDialogOpen(true);
   };
 
   const handleEdit = (service: Service) => {
     setEditingService(service);
-    setNom(service.nom);
-    setCategorieId(service.categorieId);
-    setPrix(service.prix.toString());
-    setDescription(service.description);
+    form.reset({ 
+      nom: service.nom, 
+      categorieId: service.categorieId, 
+      prix: service.prix, 
+      description: service.description 
+    });
     setServiceDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = (values: ServiceFormValues) => {
     if (editingService) {
-      // Logic for Update could be added to DataContext, 
-      // but for now let's just use addService for new ones
-      toast({ title: "Note", description: "Mise à jour à implémenter dans le context." });
+      updateService(editingService.id, values);
+      toast({ title: "Service mis à jour", description: "Les modifications ont été enregistrées." });
     } else {
-      addService({ nom, categorieId, prix: Number(prix), description });
-      toast({ title: "Succès", description: "Service ajouté au catalogue" });
+      addService(values);
+      toast({ title: "Succès", description: "Le service a été ajouté au catalogue." });
     }
     setServiceDialogOpen(false);
   };
@@ -95,16 +107,16 @@ const Services = () => {
   const handleDelete = () => {
     if (deleteId) {
       archiveItem("services", deleteId);
-      toast({ title: "Supprimé", description: "Le service a été retiré du catalogue" });
+      toast({ title: "Supprimé", description: "Le service a été retiré du catalogue." });
       setDeleteId(null);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-8">
       <PageHeader
         title="Catalogue de Services"
-        description="Gérez vos prestations et tarifs par catégorie"
+        description="Gérez l'offre de prestations d'Apress Mali"
         action={
           <Button onClick={handleOpenAdd} className="shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4 mr-2" /> Nouveau Service
@@ -112,12 +124,12 @@ const Services = () => {
         }
       />
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border border-border/50">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border/50 shadow-sm">
         <div className="relative w-full md:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Rechercher un service..." 
-            className="pl-10 h-10 bg-background" 
+            placeholder="Rechercher une prestation..." 
+            className="pl-10 h-10 bg-muted/20 border-none focus-visible:ring-1" 
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           />
@@ -139,62 +151,68 @@ const Services = () => {
         </div>
       </div>
 
-      <div className="glass-card rounded-xl overflow-hidden border border-border shadow-sm">
+      <div className="glass-card rounded-2xl overflow-hidden border border-border shadow-md">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="font-bold py-4">Désignation du Service</TableHead>
-              <TableHead className="font-bold">Catégorie</TableHead>
-              <TableHead className="text-right font-bold">Tarif (FCFA)</TableHead>
-              <TableHead className="text-right font-bold">Actions</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest py-5">Désignation du Service</TableHead>
+              <TableHead className="font-black uppercase text-[10px] tracking-widest">Catégorie</TableHead>
+              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Tarif indicatif</TableHead>
+              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedServices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                  Aucun service trouvé pour ces critères.
+                <TableCell colSpan={4} className="h-64 text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Briefcase className="h-12 w-12 opacity-10" />
+                    <p className="text-sm font-medium">Aucun service trouvé dans cette catégorie.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               paginatedServices.map((service) => {
                 const cat = categories.find(c => c.id === service.categorieId);
                 return (
-                  <TableRow key={service.id} className="group animate-fade-in hover:bg-primary/5 transition-colors">
-                    <TableCell className="py-4">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-foreground">{service.nom}</span>
+                  <TableRow key={service.id} className="group animate-fade-in hover:bg-primary/5 transition-colors border-b">
+                    <TableCell className="py-5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-black text-sm text-foreground tracking-tight group-hover:text-primary transition-colors">{service.nom}</span>
                         {service.description && (
-                          <span className="text-xs text-muted-foreground mt-0.5 line-clamp-1 italic">
-                            {service.description}
-                          </span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Info className="h-3 w-3 opacity-50" />
+                            <span className="line-clamp-1 italic">{service.description}</span>
+                          </div>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="bg-background font-normal text-[10px] uppercase tracking-wider">
+                      <Badge variant="secondary" className="bg-muted text-[9px] uppercase font-black tracking-tighter px-2">
                         {cat?.nom || "Non classé"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-primary">
-                      {service.prix > 0 ? service.prix.toLocaleString() : "Sur devis"}
+                    <TableCell className="text-right">
+                      <span className="font-black text-sm text-primary">
+                        {service.prix > 0 ? formatCurrency(service.prix) : "SUR DEVIS"}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(service)} className="cursor-pointer">
-                            <Pencil className="h-4 w-4 mr-2" /> Modifier
+                        <DropdownMenuContent align="end" className="rounded-xl border-2">
+                          <DropdownMenuItem onClick={() => handleEdit(service)} className="cursor-pointer font-bold gap-2">
+                            <Pencil className="h-4 w-4" /> Modifier
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => setDeleteId(service.id)} 
-                            className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive"
+                            className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive font-bold gap-2"
                           >
-                            <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                            <Trash2 className="h-4 w-4" /> Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -208,29 +226,31 @@ const Services = () => {
 
         {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/5">
-            <p className="text-xs text-muted-foreground">
-              Affichage de {Math.min(filteredServices.length, ITEMS_PER_PAGE)} services sur {filteredServices.length}
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/5">
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
+              {filteredServices.length} prestations au total
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
+                className="h-8 rounded-lg font-bold"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Précédent
               </Button>
-              <div className="flex items-center gap-1 mx-2">
-                <span className="text-xs font-bold text-primary">{currentPage}</span>
-                <span className="text-xs text-muted-foreground">/</span>
-                <span className="text-xs text-muted-foreground">{totalPages}</span>
+              <div className="flex items-center gap-1 font-black text-xs">
+                <span className="text-primary">{currentPage}</span>
+                <span className="opacity-20">/</span>
+                <span className="text-muted-foreground">{totalPages}</span>
               </div>
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm" 
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
+                className="h-8 rounded-lg font-bold"
               >
                 Suivant <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -241,52 +261,96 @@ const Services = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>{editingService ? "Modifier le Service" : "Nouveau Service"}</DialogTitle>
+            <DialogTitle className="text-2xl font-black flex items-center gap-2">
+              <Tag className="h-6 w-6 text-primary" />
+              {editingService ? "Modifier la prestation" : "Nouveau service"}
+            </DialogTitle>
           </DialogHeader>
-          <form className="space-y-4 pt-4" onSubmit={handleSubmit}>
-            <div className="space-y-1.5">
-              <Label>Désignation du service</Label>
-              <Input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex: Gestion de la paie" required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Catégorie</Label>
-              <Select value={categorieId} onValueChange={setCategorieId} required>
-                <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tarif indicatif (FCFA)</Label>
-              <Input type="number" value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="0" />
-              <p className="text-[10px] text-muted-foreground italic">Laissez à 0 pour un tarif variable sur devis.</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description / Notes</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Détails optionnels" />
-            </div>
-            <Button type="submit" className="w-full h-11 shadow-lg shadow-primary/20">
-              {editingService ? "Mettre à jour" : "Enregistrer le Service"}
-            </Button>
-          </form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-4">
+              <FormField
+                control={form.control}
+                name="nom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Libellé du service</FormLabel>
+                    <FormControl><Input placeholder="Ex: Audit de sécurité" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="categorieId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Catégorie</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="prix"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Tarif indicatif (FCFA)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        className="font-bold h-11"
+                        placeholder="Saisir tarif"
+                        value={field.value === 0 ? "" : field.value}
+                        onChange={e => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <p className="text-[10px] text-muted-foreground italic font-medium">Mettre 0 pour afficher "SUR DEVIS".</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Description courte</FormLabel>
+                    <FormControl><Input placeholder="Détails de la prestation..." {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full h-12 font-bold shadow-lg shadow-primary/20">
+                {editingService ? "Mettre à jour le service" : "Enregistrer au catalogue"}
+              </Button>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle className="text-xl font-bold">Retirer du catalogue ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ce service sera archivé et ne pourra plus être sélectionné pour de nouvelles factures.
+              Ce service sera archivé. Il restera visible sur les anciennes factures mais ne pourra plus être sélectionné pour les nouvelles.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
               Confirmer l'archivage
             </AlertDialogAction>
           </AlertDialogFooter>
