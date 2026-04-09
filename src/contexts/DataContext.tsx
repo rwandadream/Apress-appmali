@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { generateId } from "@/lib/utils";
 
 export interface Category {
   id: string;
@@ -65,6 +66,7 @@ export interface AppSettings {
   bankDetails: string;
   mobileMoneyDetails: string;
   legalMentions: string;
+  companyNina?: string;
 }
 
 export interface Payment {
@@ -117,7 +119,6 @@ const STORAGE_KEYS = {
   SETTINGS: "apress_v3_settings",
 };
 
-// DONNÉES INITIALES SELON VOTRE LOGIQUE
 const initialCategories: Category[] = [
   { id: "cat_grh", nom: "GESTION DES RESSOURCES HUMAINES" },
   { id: "cat_aa", nom: "ASSISTANCE ADMINISTRATIVE" },
@@ -126,7 +127,6 @@ const initialCategories: Category[] = [
 ];
 
 const initialServices: Service[] = [
-  // GRH
   { id: "s1", nom: "La prise en charge administrative du personnel", categorieId: "cat_grh", prix: 0, description: "" },
   { id: "s2", nom: "La mise à disposition du personnel", categorieId: "cat_grh", prix: 0, description: "" },
   { id: "s3", nom: "La placement/Intérim", categorieId: "cat_grh", prix: 0, description: "" },
@@ -134,18 +134,15 @@ const initialServices: Service[] = [
   { id: "s5", nom: "La gestion des contrats (CDD-CDI)", categorieId: "cat_grh", prix: 0, description: "" },
   { id: "s6", nom: "Les recrutements", categorieId: "cat_grh", prix: 0, description: "" },
   { id: "s7", nom: "La formation", categorieId: "cat_grh", prix: 0, description: "" },
-  // AA
   { id: "s8", nom: "Elaboration de manuel de procédure administrative", categorieId: "cat_aa", prix: 0, description: "" },
   { id: "s9", nom: "Assistance dans la gestion des litiges de travail", categorieId: "cat_aa", prix: 0, description: "" },
   { id: "s10", nom: "L’assistance à la création d’entreprises", categorieId: "cat_aa", prix: 0, description: "" },
   { id: "s11", nom: "Gestion des formalités administratives et consulaires", categorieId: "cat_aa", prix: 0, description: "" },
   { id: "s12", nom: "Elaboration de contrats (bail, location, gérance)", categorieId: "cat_aa", prix: 0, description: "" },
   { id: "s13", nom: "Suivi des relations contractuelles commerciales", categorieId: "cat_aa", prix: 0, description: "" },
-  // PS
   { id: "s14", nom: "Immatriculation INPS (structures et personnel)", categorieId: "cat_ps", prix: 0, description: "" },
   { id: "s15", nom: "Gestion des accidents de travail et AF", categorieId: "cat_ps", prix: 0, description: "" },
   { id: "s16", nom: "Liquidation des dossiers de retraite", categorieId: "cat_ps", prix: 0, description: "" },
-  // AUTRES
   { id: "s17", nom: "Le contrôle de parcours (transporteur)", categorieId: "cat_ap", prix: 0, description: "" },
   { id: "s18", nom: "L’assistance et la formation gestion de stock", categorieId: "cat_ap", prix: 0, description: "" },
   { id: "s19", nom: "Inventaire et calcul mouvements de stocks", categorieId: "cat_ap", prix: 0, description: "" },
@@ -187,45 +184,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-    localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(services));
-    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
-    localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
-    localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(payments));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-  }, [categories, services, clients, invoices, payments, settings]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories)); }, [categories]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(services)); }, [services]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients)); }, [clients]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices)); }, [invoices]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(payments)); }, [payments]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); }, [settings]);
 
-  const addCategory = (c: Omit<Category, "id">) => setCategories([...categories, { ...c, id: crypto.randomUUID() }]);
-  
-  const updateCategory = (id: string, updatedCategory: Partial<Category>) => {
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updatedCategory } : c));
-  };
+  const addCategory = useCallback((c: Omit<Category, "id">) => setCategories(prev => [...prev, { ...c, id: generateId() }]), []);
+  const updateCategory = useCallback((id: string, updated: Partial<Category>) => setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c)), []);
+  const addService = useCallback((s: Omit<Service, "id">) => setServices(prev => [...prev, { ...s, id: generateId() }]), []);
+  const updateService = useCallback((id: string, updated: Partial<Service>) => setServices(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s)), []);
+  const addClient = useCallback((c: Omit<Client, "id">) => setClients(prev => [...prev, { ...c, id: generateId() }]), []);
+  const updateClient = useCallback((id: string, updated: Partial<Client>) => setClients(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c)), []);
 
-  const addService = (s: Omit<Service, "id">) => setServices([...services, { ...s, id: crypto.randomUUID() }]);
-  
-  const addClient = (c: Omit<Client, "id">) => setClients([...clients, { ...c, id: crypto.randomUUID() }]);
-  
-  const updateClient = (id: string, updatedClient: Partial<Client>) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updatedClient } : c));
-  };
-  
-  const updateService = (id: string, updatedService: Partial<Service>) => {
-    setServices(prev => prev.map(s => s.id === id ? { ...s, ...updatedService } : s));
-  };
+  const addInvoice = useCallback((inv: Omit<Invoice, "id" | "numero">) => {
+    setInvoices(prev => {
+      const prefix = inv.type === "facture" ? "FAC" : "DEV";
+      const count = prev.filter(i => i.type === inv.type).length + 1;
+      const numero = `${prefix}-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
+      return [...prev, { ...inv, id: generateId(), numero }];
+    });
+  }, []);
 
-  const addInvoice = (inv: Omit<Invoice, "id" | "numero">) => {
-    const prefix = inv.type === "facture" ? "FAC" : "DEV";
-    const count = invoices.filter(i => i.type === inv.type).length + 1;
-    const numero = `${prefix}-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
-    setInvoices([...invoices, { ...inv, id: crypto.randomUUID(), numero }]);
-  };
+  const updateInvoice = useCallback((id: string, updated: Partial<Invoice>) => setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updated } : inv)), []);
 
-  const updateInvoice = (id: string, updatedInvoice: Partial<Invoice>) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updatedInvoice } : inv));
-  };
-
-  const updateInvoiceStatus = (id: string, amountPaid: number) => {
+  const updateInvoiceStatus = useCallback((id: string, amountPaid: number) => {
     setInvoices(prev => prev.map(inv => {
       if (inv.id === id) {
         const newPaye = inv.paye + amountPaid;
@@ -236,40 +220,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return inv;
     }));
-  };
+  }, []);
 
-  const addPayment = (p: Omit<Payment, "id">) => {
-    setPayments([...payments, { ...p, id: crypto.randomUUID() }]);
+  const addPayment = useCallback((p: Omit<Payment, "id">) => {
+    setPayments(prev => [...prev, { ...p, id: generateId() }]);
     updateInvoiceStatus(p.invoiceId, p.amount);
-  };
+  }, [updateInvoiceStatus]);
 
-  const deletePayment = (id: string) => {
-    const payment = payments.find(p => p.id === id);
-    if (payment) {
-      setInvoices(prev => prev.map(inv => {
-        if (inv.id === payment.invoiceId) {
-          const newPaye = Math.max(0, inv.paye - payment.amount);
-          let newStatus: Invoice["status"] = "non_payée";
-          if (newPaye >= inv.montantTTC) newStatus = "payée";
-          else if (newPaye > 0) newStatus = "partielle";
-          return { ...inv, paye: newPaye, status: newStatus };
-        }
-        return inv;
-      }));
-      setPayments(prev => prev.filter(p => p.id !== id));
-    }
-  };
+  const deletePayment = useCallback((id: string) => {
+    setPayments(prevPayments => {
+      const p = prevPayments.find(item => item.id === id);
+      if (p) {
+        setInvoices(prevInvoices => prevInvoices.map(inv => {
+          if (inv.id === p.invoiceId) {
+            const newPaye = Math.max(0, inv.paye - p.amount);
+            let newStatus: Invoice["status"] = "non_payée";
+            if (newPaye >= inv.montantTTC) newStatus = "payée";
+            else if (newPaye > 0) newStatus = "partielle";
+            return { ...inv, paye: newPaye, status: newStatus };
+          }
+          return inv;
+        }));
+        return prevPayments.filter(item => item.id !== id);
+      }
+      return prevPayments;
+    });
+  }, []);
 
-  const archiveItem = (type: "clients" | "services" | "invoices" | "categories", id: string) => {
+  const archiveItem = useCallback((type: "clients" | "services" | "invoices" | "categories", id: string) => {
     if (type === "clients") setClients(prev => prev.map(c => c.id === id ? { ...c, archived: true } : c));
     if (type === "services") setServices(prev => prev.map(s => s.id === id ? { ...s, archived: true } : s));
     if (type === "invoices") setInvoices(prev => prev.map(i => i.id === id ? { ...i, archived: true } : i));
     if (type === "categories") setCategories(prev => prev.map(c => c.id === id ? { ...c, archived: true } : c));
-  };
+  }, []);
 
-  const updateSettings = (s: AppSettings) => setSettings(s);
+  const updateSettings = useCallback((s: AppSettings) => setSettings(s), []);
 
-  const exportData = () => {
+  const exportData = useCallback(() => {
     const data = { categories, services, clients, invoices, payments, settings };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -277,9 +264,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     a.href = url;
     a.download = `apress_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-  };
+  }, [categories, services, clients, invoices, payments, settings]);
 
-  const importData = (jsonData: string) => {
+  const importData = useCallback((jsonData: string) => {
     try {
       const data = JSON.parse(jsonData);
       if (data.categories) setCategories(data.categories);
@@ -289,29 +276,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.payments) setPayments(data.payments);
       if (data.settings) setSettings(data.settings);
       return true;
-    } catch (e) {
-      return false;
-    }
-  };
+    } catch (e) { return false; }
+  }, []);
 
   const stats = useMemo(() => {
-    const validInvoices = invoices.filter(i => i.type === "facture" && !i.archived);
-    const totalFacture = validInvoices.reduce((acc, curr) => acc + curr.montantTTC, 0);
-    const totalEncaisse = validInvoices.reduce((acc, curr) => acc + curr.paye, 0);
+    const valid = invoices.filter(i => i.type === "facture" && !i.archived);
+    const totalFacture = valid.reduce((acc, curr) => acc + curr.montantTTC, 0);
+    const totalEncaisse = valid.reduce((acc, curr) => acc + curr.paye, 0);
     const resteARecouvrer = totalFacture - totalEncaisse;
     const tauxRecouvrement = totalFacture > 0 ? (totalEncaisse / totalFacture) * 100 : 0;
     return { totalFacture, totalEncaisse, resteARecouvrer, tauxRecouvrement };
   }, [invoices]);
 
-  return (
-    <DataContext.Provider value={{ 
-      categories, services, clients, invoices, payments, settings, stats,
-      addCategory, updateCategory, addService, addClient, updateClient, addInvoice, updateInvoice, updateInvoiceStatus, 
-      updateService, addPayment, deletePayment, archiveItem, updateSettings, exportData, importData
-    }}>
-      {children}
-    </DataContext.Provider>
-  );
+  const contextValue = useMemo(() => ({
+    categories, services, clients, invoices, payments, settings, stats,
+    addCategory, updateCategory, addService, updateService, addClient, updateClient,
+    addInvoice, updateInvoice, updateInvoiceStatus, addPayment, deletePayment, archiveItem,
+    updateSettings, exportData, importData
+  }), [
+    categories, services, clients, invoices, payments, settings, stats,
+    addCategory, updateCategory, addService, updateService, addClient, updateClient,
+    addInvoice, updateInvoice, updateInvoiceStatus, addPayment, deletePayment, archiveItem,
+    updateSettings, exportData, importData
+  ]);
+
+  return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
 };
 
 export const useData = () => {

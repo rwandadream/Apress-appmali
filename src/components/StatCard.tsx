@@ -11,11 +11,19 @@ interface StatCardProps {
     isNeutral?: boolean;
   };
   className?: string;
+  onClick?: () => void;
 }
 
-const StatCard = ({ title, value, icon: Icon, trend, className }: StatCardProps) => {
+const StatCard = ({ title, value, icon: Icon, trend, className, onClick }: StatCardProps) => {
   return (
-    <div className={cn("glass-card group overflow-hidden relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1", className)}>
+    <div 
+      onClick={onClick}
+      className={cn(
+        "glass-card group overflow-hidden relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1", 
+        onClick && "cursor-pointer active:scale-95",
+        className
+      )}
+    >
       <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
       
       <div className="p-6 space-y-4">

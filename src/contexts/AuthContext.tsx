@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
+import { generateId } from "@/lib/utils";
 
 export type UserRole = "superviseur" | "employee";
 
@@ -8,6 +9,15 @@ export interface AppUser {
   prenom: string;
   email: string;
   role: UserRole;
+}
+
+export interface ActivityEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  timestamp: string;
 }
 
 interface AuthContextType {
@@ -23,22 +33,12 @@ interface AuthContextType {
   logActivity: (action: string, details: string) => void;
 }
 
-export interface ActivityEntry {
-  id: string;
-  userId: string;
-  userName: string;
-  action: string;
-  details: string;
-  timestamp: string;
-}
-
 const defaultUsers: AppUser[] = [
   { id: "1", nom: "Admin", prenom: "APRESS", email: "admin@apress-mali.com", role: "superviseur" },
   { id: "2", nom: "Diarra", prenom: "Moussa", email: "moussa@apress-mali.com", role: "employee" },
   { id: "3", nom: "Sangaré", prenom: "Awa", email: "awa@apress-mali.com", role: "employee" },
 ];
 
-// Demo passwords: admin@apress-mali.com / admin123, others / employe123
 const passwords: Record<string, string> = {
   "admin@apress-mali.com": "admin123",
   "moussa@apress-mali.com": "employe123",
@@ -55,8 +55,8 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(() => {
-    const savedUser = localStorage.getItem("apress_auth_user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    const saved = localStorage.getItem("apress_auth_user");
+    return saved ? JSON.parse(saved) : null;
   });
   const [users, setUsers] = useState<AppUser[]>(defaultUsers);
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     setActivityLog((prev) => [
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         userId: user.id,
         userName: `${user.prenom} ${user.nom}`,
         action,
@@ -76,15 +76,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ]);
   }, [user]);
 
-  const login = (email: string, password: string): boolean => {
+  const login = useCallback((email: string, password: string): boolean => {
     const found = users.find((u) => u.email === email);
-    if (!found) return false;
-    if (passwords[email] !== password) return false;
+    if (!found || passwords[email] !== password) return false;
+    
     setUser(found);
     localStorage.setItem("apress_auth_user", JSON.stringify(found));
     setActivityLog((prev) => [
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         userId: found.id,
         userName: `${found.prenom} ${found.nom}`,
         action: "Connexion",
@@ -94,13 +94,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ...prev,
     ]);
     return true;
-  };
+  }, [users]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     if (user) {
       setActivityLog((prev) => [
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           userId: user.id,
           userName: `${user.prenom} ${user.nom}`,
           action: "Déconnexion",
@@ -112,38 +112,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setUser(null);
     localStorage.removeItem("apress_auth_user");
-  };
+  }, [user]);
 
-  const addUser = (newUser: Omit<AppUser, "id">) => {
-    const created: AppUser = { ...newUser, id: crypto.randomUUID() };
+  const addUser = useCallback((newUser: Omit<AppUser, "id">) => {
+    const created: AppUser = { ...newUser, id: generateId() };
     setUsers((prev) => [...prev, created]);
     passwords[created.email] = "employe123";
-    logActivity("Création utilisateur", `Compte créé pour ${newUser.prenom} ${newUser.nom} (${newUser.role})`);
-  };
+    logActivity("Création utilisateur", `Compte créé pour ${newUser.prenom} ${newUser.nom}`);
+  }, [logActivity]);
 
-  const deleteUser = (id: string) => {
-    const target = users.find((u) => u.id === id);
-    if (!target || target.id === user?.id) return;
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    logActivity("Suppression utilisateur", `Compte supprimé: ${target.prenom} ${target.nom}`);
-  };
+  const deleteUser = useCallback((id: string) => {
+    setUsers((prev) => {
+      const target = prev.find((u) => u.id === id);
+      if (!target || target.id === user?.id) return prev;
+      logActivity("Suppression utilisateur", `Compte supprimé: ${target.prenom} ${target.nom}`);
+      return prev.filter((u) => u.id !== id);
+    });
+  }, [user?.id, logActivity]);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isSuperviseur: user?.role === "superviseur",
-        login,
-        logout,
-        users,
-        addUser,
-        deleteUser,
-        activityLog,
-        logActivity,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const contextValue = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    isSuperviseur: user?.role === "superviseur",
+    login,
+    logout,
+    users,
+    addUser,
+    deleteUser,
+    activityLog,
+    logActivity,
+  }), [user, login, logout, users, addUser, deleteUser, activityLog, logActivity]);
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };

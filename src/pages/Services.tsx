@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, MoreVertical, Briefcase, Tag, Info, Settings2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -27,7 +28,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { useData, Service, Category } from "@/contexts/DataContext";
+import { useData, Service } from "@/contexts/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -43,10 +44,9 @@ const serviceSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
 const Services = () => {
-  const { categories, services, addService, updateService, archiveItem, addCategory, updateCategory } = useData();
+  const { categories, services, addService, updateService, archiveItem, addCategory } = useData();
   const { toast } = useToast();
   
-  // UI State
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,7 +61,6 @@ const Services = () => {
     defaultValues: { nom: "", categorieId: "", prix: 0, description: "" },
   });
 
-  // Logic: Filtering & Searching
   const filteredServices = useMemo(() => {
     return services.filter(s => {
       if (s.archived) return false;
@@ -71,7 +70,6 @@ const Services = () => {
     });
   }, [services, search, categoryFilter]);
 
-  // Logic: Pagination
   const totalPages = Math.ceil(filteredServices.length / ITEMS_PER_PAGE);
   const paginatedServices = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -90,7 +88,7 @@ const Services = () => {
       nom: service.nom, 
       categorieId: service.categorieId, 
       prix: service.prix, 
-      description: service.description 
+      description: service.description || "" 
     });
     setServiceDialogOpen(true);
   };
@@ -122,290 +120,191 @@ const Services = () => {
   };
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-6 pb-8 animate-fade-in">
       <PageHeader
-        title="Catalogue de Services"
-        description="Gérez l'offre de prestations d'Apress Mali"
+        title="Services"
+        description="Catalogue des prestations"
         action={
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setCategoryDialogOpen(true)} className="gap-2 border-primary text-primary hover:bg-primary/5">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCategoryDialogOpen(true)} className="gap-2 hidden sm:flex">
               <Settings2 className="h-4 w-4" /> Catégories
             </Button>
-            <Button onClick={handleOpenAdd} className="shadow-lg shadow-primary/20 gap-2">
-              <Plus className="h-4 w-4" /> Nouveau Service
+            <Button size="sm" onClick={handleOpenAdd} className="gap-2">
+              <Plus className="h-4 w-4" /> <span className="hidden xs:inline">Nouveau</span>
             </Button>
           </div>
         }
       />
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border/50 shadow-sm">
-        <div className="relative w-full md:max-w-sm">
+      <div className="flex flex-col gap-4 bg-card p-4 rounded-xl border border-border/50 shadow-sm">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Rechercher une prestation..." 
-            className="pl-10 h-10 bg-muted/20 border-none focus-visible:ring-1" 
+            placeholder="Rechercher..." 
+            className="pl-10 bg-muted/20 border-none h-10" 
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           />
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2">
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setCurrentPage(1); }}>
-            <SelectTrigger className="w-full md:w-[250px] bg-background">
-              <SelectValue placeholder="Toutes les catégories" />
+            <SelectTrigger className="w-full bg-background h-10">
+              <SelectValue placeholder="Catégories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toutes les catégories</SelectItem>
+              <SelectItem value="all">Tous les services</SelectItem>
               {categories.filter(c => !c.archived).map(cat => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.nom}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" size="icon" onClick={() => setCategoryDialogOpen(true)} className="sm:hidden shrink-0">
+            <Settings2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-hidden border border-border shadow-md">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="font-black uppercase text-[10px] tracking-widest py-5">Désignation du Service</TableHead>
-              <TableHead className="font-black uppercase text-[10px] tracking-widest">Catégorie</TableHead>
-              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Tarif indicatif</TableHead>
-              <TableHead className="text-right font-black uppercase text-[10px] tracking-widest">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedServices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-64 text-center">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-12 w-12 opacity-10" />
-                    <p className="text-sm font-medium">Aucun service trouvé dans cette catégorie.</p>
-                  </div>
-                </TableCell>
+      <div className="glass-card rounded-xl border border-border shadow-md overflow-hidden">
+        <ScrollArea className="w-full">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="font-bold uppercase text-[10px] tracking-widest whitespace-nowrap">Désignation</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-widest whitespace-nowrap">Catégorie</TableHead>
+                <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest whitespace-nowrap">Tarif</TableHead>
+                <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest whitespace-nowrap">Actions</TableHead>
               </TableRow>
-            ) : (
-              paginatedServices.map((service) => {
-                const cat = categories.find(c => c.id === service.categorieId);
-                return (
-                  <TableRow key={service.id} className="group animate-fade-in hover:bg-primary/5 transition-colors border-b">
-                    <TableCell className="py-5">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-black text-sm text-foreground tracking-tight group-hover:text-primary transition-colors">{service.nom}</span>
-                        {service.description && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Info className="h-3 w-3 opacity-50" />
-                            <span className="line-clamp-1 italic">{service.description}</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-muted text-[9px] uppercase font-black tracking-tighter px-2 max-w-[150px] truncate">
-                        {cat?.nom || "Non classé"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-black text-sm text-primary">
-                        {service.prix > 0 ? formatCurrency(service.prix) : "SUR DEVIS"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl border-2">
-                          <DropdownMenuItem onClick={() => handleEdit(service)} className="cursor-pointer font-bold gap-2">
-                            <Pencil className="h-4 w-4" /> Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => setDeleteId(service.id)} 
-                            className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive font-bold gap-2"
-                          >
-                            <Trash2 className="h-4 w-4" /> Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paginatedServices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-48 text-center">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Briefcase className="h-10 w-10 opacity-10" />
+                      <p className="text-sm font-medium">Aucun service trouvé.</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedServices.map((service) => {
+                  const cat = categories.find(c => c.id === service.categorieId);
+                  return (
+                    <TableRow key={service.id} className="hover:bg-muted/5 transition-colors">
+                      <TableCell className="min-w-[180px]">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm">{service.nom}</span>
+                          {service.description && <span className="text-[10px] text-muted-foreground line-clamp-1">{service.description}</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <Badge variant="outline" className="text-[9px] uppercase font-bold tracking-tighter truncate max-w-[100px]">
+                          {cat?.nom || "Indéfini"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-black text-sm whitespace-nowrap">
+                        {service.prix > 0 ? formatCurrency(service.prix) : "DEVIS"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-xl font-bold">
+                            <DropdownMenuItem onClick={() => handleEdit(service)} className="gap-2">
+                              <Pencil className="h-4 w-4" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteId(service.id)} className="text-destructive focus:text-destructive gap-2">
+                              <Trash2 className="h-4 w-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
 
-        {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/5">
-            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-              {filteredServices.length} prestations au total
-            </p>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="h-8 rounded-lg font-bold"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Précédent
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/5">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">{filteredServices.length} items</span>
+            <div className="flex items-center gap-2">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex items-center gap-1 font-black text-xs">
-                <span className="text-primary">{currentPage}</span>
-                <span className="opacity-20">/</span>
-                <span className="text-muted-foreground">{totalPages}</span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className="h-8 rounded-lg font-bold"
-              >
-                Suivant <ChevronRight className="h-4 w-4 ml-1" />
+              <span className="text-xs font-bold">{currentPage} / {totalPages}</span>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Categories Management Dialog */}
+      {/* Dialogs remain similar but with improved mobile styling */}
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-md rounded-3xl">
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Gestion des Catégories</DialogTitle>
-            <DialogDescription>Ajoutez ou gérez les types de prestations.</DialogDescription>
+            <DialogTitle className="text-xl font-black">Catégories</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 pt-4">
+          <div className="space-y-4 pt-2">
             <div className="flex gap-2">
-              <Input 
-                placeholder="Nom de la nouvelle catégorie..." 
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                className="h-11 font-bold uppercase text-xs tracking-wider"
-              />
-              <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="h-11 px-6">
-                <Plus className="h-4 w-4" />
-              </Button>
+              <Input placeholder="Nouvelle catégorie..." value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="h-10 font-bold" />
+              <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()} size="icon" className="shrink-0"><Plus className="h-4 w-4" /></Button>
             </div>
-            
-            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
+            <ScrollArea className="h-60 pr-2">
               {categories.filter(c => !c.archived).map(cat => (
-                <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
-                  <span className="text-xs font-black uppercase tracking-wider">{cat.nom}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-destructive/50 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
-                    onClick={() => archiveItem("categories", cat.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div key={cat.id} className="flex items-center justify-between p-3 mb-2 rounded-lg bg-muted/30 border border-border/50">
+                  <span className="text-xs font-bold uppercase">{cat.nom}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/50" onClick={() => archiveItem("categories", cat.id)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
               ))}
-            </div>
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Service Add/Edit Dialog */}
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="w-[95vw] max-w-md rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black flex items-center gap-2">
-              <Tag className="h-6 w-6 text-primary" />
-              {editingService ? "Modifier la prestation" : "Nouveau service"}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-black">{editingService ? "Modifier" : "Nouveau Service"}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 pt-4">
-              <FormField
-                control={form.control}
-                name="nom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Libellé du service</FormLabel>
-                    <FormControl><Input placeholder="Ex: Audit de sécurité" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="categorieId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Catégorie</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.filter(c => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="prix"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Tarif indicatif (FCFA)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        className="font-bold h-11"
-                        placeholder="Saisir tarif"
-                        value={field.value === 0 ? "" : field.value}
-                        onChange={e => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <p className="text-[10px] text-muted-foreground italic font-medium">Mettre 0 pour afficher "SUR DEVIS".</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Description courte</FormLabel>
-                    <FormControl><Input placeholder="Détails de la prestation..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full h-12 font-bold shadow-lg shadow-primary/20">
-                {editingService ? "Mettre à jour le service" : "Enregistrer au catalogue"}
-              </Button>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
+              <FormField control={form.control} name="nom" render={({ field }) => (
+                <FormItem><FormLabel className="font-bold text-xs">Désignation</FormLabel><FormControl><Input placeholder="Nom du service" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="categorieId" render={({ field }) => (
+                <FormItem><FormLabel className="font-bold text-xs">Catégorie</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger></FormControl>
+                    <SelectContent>{categories.filter(c => !c.archived).map(c => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="prix" render={({ field }) => (
+                <FormItem><FormLabel className="font-bold text-xs">Tarif (FCFA)</FormLabel>
+                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage />
+                </FormItem>
+              )} />
+              <Button type="submit" className="w-full h-11 font-bold mt-2">Enregistrer</Button>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold">Retirer du catalogue ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ce service sera archivé. Il restera visible sur les anciennes factures mais ne pourra plus être sélectionné pour les nouvelles.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="w-[95vw] max-w-sm rounded-2xl">
+          <AlertDialogHeader><AlertDialogTitle>Confirmer ?</AlertDialogTitle><AlertDialogDescription>Voulez-vous archiver ce service ?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">
-              Confirmer l'archivage
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive rounded-xl">Archiver</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

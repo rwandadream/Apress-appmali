@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useData } from "@/contexts/DataContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   BarChart, 
   Bar, 
@@ -38,6 +38,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const Dashboard = () => {
   const { invoices, clients, categories, services, stats } = useData();
+  const navigate = useNavigate();
 
   const recentInvoices = useMemo(() => {
     try {
@@ -136,24 +137,28 @@ const Dashboard = () => {
           value={`${safeStats.totalFacture.toLocaleString()} FCFA`}
           icon={TrendingUp}
           trend={{ value: "Total facturé", isPositive: true }}
+          onClick={() => navigate("/invoices")}
         />
         <StatCard
           title="Recouvrement"
           value={`${safeStats.totalEncaisse.toLocaleString()} FCFA`}
           icon={CheckCircle2}
           trend={{ value: `${safeStats.tauxRecouvrement.toFixed(1)}% encaissé`, isPositive: safeStats.tauxRecouvrement > 50 }}
+          onClick={() => navigate("/invoices")}
         />
         <StatCard
           title="Reste à percevoir"
           value={`${safeStats.resteARecouvrer.toLocaleString()} FCFA`}
           icon={Clock}
           trend={{ value: "Factures en attente", isNeutral: true }}
+          onClick={() => navigate("/invoices")}
         />
         <StatCard
           title="Clients Actifs"
           value={clients.filter(c => c && !c.archived).length.toString()}
           icon={Users}
           trend={{ value: "Base client", isPositive: true }}
+          onClick={() => navigate("/clients")}
         />
       </div>
 

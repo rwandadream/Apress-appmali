@@ -5,6 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function generateId(): string {
+  try {
+    if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
+      return window.crypto.randomUUID();
+    }
+  } catch (e) {
+    // Fallback if crypto fails or not available
+  }
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
