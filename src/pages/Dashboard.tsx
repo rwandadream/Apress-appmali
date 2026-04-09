@@ -37,11 +37,7 @@ import { cn } from "@/lib/utils";
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const Dashboard = () => {
-  const data = useData();
-  const stats = data?.stats;
-  const invoices = data?.invoices || [];
-  const clients = data?.clients || [];
-  const categories = data?.categories || [];
+  const { invoices, clients, categories, services, stats } = useData();
 
   const recentInvoices = useMemo(() => {
     try {
@@ -84,24 +80,28 @@ const Dashboard = () => {
   const pieData = useMemo(() => {
     try {
       if (!categories || categories.length === 0) return [{ name: 'Aucune catégorie', value: 1 }];
-      
+
       const res = categories.map(cat => {
         const total = invoices
           .filter(inv => inv && inv.type === 'facture' && !inv.archived)
           .reduce((sum, inv) => {
-            const items = inv.items || [];
-            const itemsTotal = items.reduce((s, item) => s + (item.montant || 0), 0);
-            return sum + itemsTotal;
+            const categoryItems = (inv.items || []).filter(item => {
+              const svc = services.find(s => s.id === item.serviceId);
+              return svc?.categorieId === cat.id;
+            });
+            return sum + categoryItems.reduce((s, item) => s + (item.montant || 0), 0);
           }, 0);
         return { name: cat.nom ? cat.nom.split(' ')[0] : "Cat", value: total };
       }).filter(d => d.value > 0);
-      
+
       return res.length > 0 ? res : [{ name: 'En attente', value: 1 }];
     } catch (e) {
       console.error("Error in pieData calculation", e);
       return [{ name: 'Erreur', value: 1 }];
     }
-  }, [invoices, categories]);
+  }, [invoices, categories, services]);
+
+  const COLORS = ['#0f172a', '#1e293b', '#334155', '#475569', '#64748b'];
 
   const safeStats = {
     totalFacture: stats?.totalFacture || 0,

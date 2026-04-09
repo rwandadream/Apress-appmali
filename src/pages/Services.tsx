@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, MoreVertical, Briefcase, Tag, Info } from "lucide-react";
+import { Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, MoreVertical, Briefcase, Tag, Info, Settings2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { 
@@ -27,7 +27,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
-import { useData, Service } from "@/contexts/DataContext";
+import { useData, Service, Category } from "@/contexts/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ const serviceSchema = z.object({
 type ServiceFormValues = z.infer<typeof serviceSchema>;
 
 const Services = () => {
-  const { categories, services, addService, updateService, archiveItem } = useData();
+  const { categories, services, addService, updateService, archiveItem, addCategory, updateCategory } = useData();
   const { toast } = useToast();
   
   // UI State
@@ -51,8 +51,10 @@ const Services = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -104,6 +106,13 @@ const Services = () => {
     setServiceDialogOpen(false);
   };
 
+  const handleAddCategory = () => {
+    if (newCategoryName.trim().length < 2) return;
+    addCategory({ nom: newCategoryName.trim().toUpperCase() });
+    setNewCategoryName("");
+    toast({ title: "Catégorie ajoutée", description: "La nouvelle catégorie est disponible." });
+  };
+
   const handleDelete = () => {
     if (deleteId) {
       archiveItem("services", deleteId);
@@ -118,9 +127,14 @@ const Services = () => {
         title="Catalogue de Services"
         description="Gérez l'offre de prestations d'Apress Mali"
         action={
-          <Button onClick={handleOpenAdd} className="shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4 mr-2" /> Nouveau Service
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(true)} className="gap-2 border-primary text-primary hover:bg-primary/5">
+              <Settings2 className="h-4 w-4" /> Catégories
+            </Button>
+            <Button onClick={handleOpenAdd} className="shadow-lg shadow-primary/20 gap-2">
+              <Plus className="h-4 w-4" /> Nouveau Service
+            </Button>
+          </div>
         }
       />
 
@@ -143,7 +157,7 @@ const Services = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les catégories</SelectItem>
-              {categories.map(cat => (
+              {categories.filter(c => !c.archived).map(cat => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.nom}</SelectItem>
               ))}
             </SelectContent>
@@ -188,7 +202,7 @@ const Services = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="bg-muted text-[9px] uppercase font-black tracking-tighter px-2">
+                      <Badge variant="secondary" className="bg-muted text-[9px] uppercase font-black tracking-tighter px-2 max-w-[150px] truncate">
                         {cat?.nom || "Non classé"}
                       </Badge>
                     </TableCell>
@@ -259,7 +273,46 @@ const Services = () => {
         )}
       </div>
 
-      {/* Add/Edit Dialog */}
+      {/* Categories Management Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black">Gestion des Catégories</DialogTitle>
+            <DialogDescription>Ajoutez ou gérez les types de prestations.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 pt-4">
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Nom de la nouvelle catégorie..." 
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="h-11 font-bold uppercase text-xs tracking-wider"
+              />
+              <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="h-11 px-6">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
+              {categories.filter(c => !c.archived).map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
+                  <span className="text-xs font-black uppercase tracking-wider">{cat.nom}</span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-destructive/50 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={() => archiveItem("categories", cat.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Service Add/Edit Dialog */}
       <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
@@ -287,12 +340,12 @@ const Services = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-bold">Catégorie</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}
+                        {categories.filter(c => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />

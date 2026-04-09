@@ -1,20 +1,25 @@
-import { useState, useMemo } from "react";
-import { Plus, Search, CreditCard, Calendar, ArrowUpRight, CheckCircle2, Wallet, Receipt, Filter } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, CreditCard, Calendar, ArrowUpRight, CheckCircle2, Wallet, Receipt, Filter, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 
 const Payments = () => {
-  const { payments, invoices, addPayment } = useData();
+  const { payments, invoices, addPayment, deletePayment } = useData();
+  const { isSuperviseur } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -24,6 +29,18 @@ const Payments = () => {
   const [method, setMethod] = useState<string>("Espèces");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [reference, setReference] = useState("");
+
+  useEffect(() => {
+    const invId = searchParams.get("invoiceId");
+    if (invId) {
+      setInvoiceId(invId);
+      const inv = invoices.find(i => i.id === invId);
+      if (inv) {
+        setAmount((inv.montantTTC - inv.paye).toString());
+        setDialogOpen(true);
+      }
+    }
+  }, [searchParams, invoices]);
 
   const selectedInvoice = useMemo(() => invoices.find(i => i.id === invoiceId), [invoices, invoiceId]);
   const resteAPayer = selectedInvoice ? selectedInvoice.montantTTC - selectedInvoice.paye : 0;
@@ -52,6 +69,12 @@ const Payments = () => {
     
     setInvoiceId(""); setAmount(""); setReference("");
     setDialogOpen(false);
+    setSearchParams({}); // Clear URL params
+  };
+
+  const handleDelete = (id: string) => {
+    deletePayment(id);
+    toast({ title: "Paiement supprimé", description: "Le versement a été annulé et le statut de la facture mis à jour." });
   };
 
   const filteredPayments = useMemo(() => {
@@ -70,7 +93,10 @@ const Payments = () => {
         title="Gestion des Paiements"
         description={`${payments.length} transactions enregistrées dans votre système`}
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setSearchParams({});
+          }}>
             <DialogTrigger asChild>
               <Button className="shadow-lg shadow-primary/20">
                 <Plus className="h-4 w-4 mr-2" /> Enregistrer un versement
@@ -88,7 +114,7 @@ const Payments = () => {
                   <Select value={invoiceId} onValueChange={setInvoiceId}>
                     <SelectTrigger className="h-12"><SelectValue placeholder="Sélectionner une facture en attente" /></SelectTrigger>
                     <SelectContent>
-                      {invoices.filter(i => i.status !== "payée" && !i.archived).map((inv) => (
+                      {invoices.filter(i => i.status !== "payée" && !i.archived && i.type !== 'devis').map((inv) => (
                         <SelectItem key={inv.id} value={inv.id}>
                           {inv.numero} – {inv.clientName} ({formatCurrency(inv.montantTTC - inv.paye)})
                         </SelectItem>
@@ -138,6 +164,7 @@ const Payments = () => {
                         <SelectItem value="Chèque">Chèque</SelectItem>
                         <SelectItem value="Virement">Virement</SelectItem>
                         <SelectItem value="Orange Money">Orange Money</SelectItem>
+                        <SelectItem value="Moov Money">Moov Money</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -184,6 +211,29 @@ const Payments = () => {
             const inv = invoices.find(i => i.id === payment.invoiceId);
             return (
               <Card key={payment.id} className="glass-card group overflow-hidden border-border/50 hover:border-primary/50 transition-all hover:shadow-xl hover:-translate-y-1 animate-fade-in relative">
+                <div className="absolute top-0 right-0 p-2">
+                   {isSuperviseur && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/30 hover:text-destructive hover:bg-destructive/10 rounded-full transition-all">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="text-xl font-bold">Annuler ce paiement ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action annulera l'encaissement de {formatCurrency(payment.amount)}. Le montant sera déduit du total payé de la facture {inv?.numero}.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl">Conserver</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(payment.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl">Annuler le paiement</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                </div>
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">

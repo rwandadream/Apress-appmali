@@ -84,13 +84,17 @@ interface DataContextType {
   payments: Payment[];
   settings: AppSettings;
   addCategory: (category: Omit<Category, "id">) => void;
+  updateCategory: (id: string, category: Partial<Category>) => void;
   addService: (service: Omit<Service, "id">) => void;
   addClient: (client: Omit<Client, "id">) => void;
+  updateClient: (id: string, client: Partial<Client>) => void;
   addInvoice: (invoice: Omit<Invoice, "id" | "numero">) => void;
+  updateInvoice: (id: string, invoice: Partial<Invoice>) => void;
   updateInvoiceStatus: (id: string, paye: number) => void;
   updateService: (id: string, service: Partial<Service>) => void;
   addPayment: (payment: Omit<Payment, "id">) => void;
-  archiveItem: (type: "clients" | "services" | "invoices", id: string) => void;
+  deletePayment: (id: string) => void;
+  archiveItem: (type: "clients" | "services" | "invoices" | "categories", id: string) => void;
   updateSettings: (settings: AppSettings) => void;
   exportData: () => void;
   importData: (jsonData: string) => boolean;
@@ -166,7 +170,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [clients, setClients] = useState<Client[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || "[]"));
   const [invoices, setInvoices] = useState<Invoice[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || "[]"));
   const [payments, setPayments] = useState<Payment[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS) || "[]"));
-  const [settings, setSettings] = useState<AppSettings>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{"defaultTva": 18, "currency": "FCFA", "companyName": "APRESS MALI"}'));
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (saved) return JSON.parse(saved);
+    return {
+      defaultTva: 18,
+      currency: "FCFA",
+      companyName: "APRESS MALI S.A.R.L",
+      companyAddress: "Immeuble ABK III, 1er étage, Porte 102, Hamdallaye ACI 2000, Bamako, Mali",
+      companyNif: "00101860E",
+      companyRCCM: "RC Bamako 2006B3016",
+      companyNina: "40609194223321A",
+      bankDetails: "BDM-SA N° ML016 01201 020401004992-60",
+      mobileMoneyDetails: "Tél: 20 29 39 53 / Fax: 20 29 21 35",
+      legalMentions: "BP E1466 - Email: specialprestamali@hotmail.com"
+    };
+  });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
@@ -178,8 +197,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [categories, services, clients, invoices, payments, settings]);
 
   const addCategory = (c: Omit<Category, "id">) => setCategories([...categories, { ...c, id: crypto.randomUUID() }]);
+  
+  const updateCategory = (id: string, updatedCategory: Partial<Category>) => {
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updatedCategory } : c));
+  };
+
   const addService = (s: Omit<Service, "id">) => setServices([...services, { ...s, id: crypto.randomUUID() }]);
+  
   const addClient = (c: Omit<Client, "id">) => setClients([...clients, { ...c, id: crypto.randomUUID() }]);
+  
+  const updateClient = (id: string, updatedClient: Partial<Client>) => {
+    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updatedClient } : c));
+  };
   
   const updateService = (id: string, updatedService: Partial<Service>) => {
     setServices(prev => prev.map(s => s.id === id ? { ...s, ...updatedService } : s));
@@ -190,6 +219,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const count = invoices.filter(i => i.type === inv.type).length + 1;
     const numero = `${prefix}-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
     setInvoices([...invoices, { ...inv, id: crypto.randomUUID(), numero }]);
+  };
+
+  const updateInvoice = (id: string, updatedInvoice: Partial<Invoice>) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, ...updatedInvoice } : inv));
   };
 
   const updateInvoiceStatus = (id: string, amountPaid: number) => {
@@ -210,10 +243,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateInvoiceStatus(p.invoiceId, p.amount);
   };
 
-  const archiveItem = (type: "clients" | "services" | "invoices", id: string) => {
+  const deletePayment = (id: string) => {
+    const payment = payments.find(p => p.id === id);
+    if (payment) {
+      setInvoices(prev => prev.map(inv => {
+        if (inv.id === payment.invoiceId) {
+          const newPaye = Math.max(0, inv.paye - payment.amount);
+          let newStatus: Invoice["status"] = "non_payée";
+          if (newPaye >= inv.montantTTC) newStatus = "payée";
+          else if (newPaye > 0) newStatus = "partielle";
+          return { ...inv, paye: newPaye, status: newStatus };
+        }
+        return inv;
+      }));
+      setPayments(prev => prev.filter(p => p.id !== id));
+    }
+  };
+
+  const archiveItem = (type: "clients" | "services" | "invoices" | "categories", id: string) => {
     if (type === "clients") setClients(prev => prev.map(c => c.id === id ? { ...c, archived: true } : c));
     if (type === "services") setServices(prev => prev.map(s => s.id === id ? { ...s, archived: true } : s));
     if (type === "invoices") setInvoices(prev => prev.map(i => i.id === id ? { ...i, archived: true } : i));
+    if (type === "categories") setCategories(prev => prev.map(c => c.id === id ? { ...c, archived: true } : c));
   };
 
   const updateSettings = (s: AppSettings) => setSettings(s);
@@ -255,8 +306,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <DataContext.Provider value={{ 
       categories, services, clients, invoices, payments, settings, stats,
-      addCategory, addService, addClient, addInvoice, updateInvoiceStatus, 
-      updateService, addPayment, archiveItem, updateSettings, exportData, importData
+      addCategory, updateCategory, addService, addClient, updateClient, addInvoice, updateInvoice, updateInvoiceStatus, 
+      updateService, addPayment, deletePayment, archiveItem, updateSettings, exportData, importData
     }}>
       {children}
     </DataContext.Provider>

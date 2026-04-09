@@ -54,7 +54,10 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AppUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(() => {
+    const savedUser = localStorage.getItem("apress_auth_user");
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [users, setUsers] = useState<AppUser[]>(defaultUsers);
   const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
 
@@ -78,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!found) return false;
     if (passwords[email] !== password) return false;
     setUser(found);
+    localStorage.setItem("apress_auth_user", JSON.stringify(found));
     setActivityLog((prev) => [
       {
         id: crypto.randomUUID(),
@@ -107,6 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ]);
     }
     setUser(null);
+    localStorage.removeItem("apress_auth_user");
   };
 
   const addUser = (newUser: Omit<AppUser, "id">) => {

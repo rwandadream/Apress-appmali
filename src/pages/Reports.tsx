@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const Reports = () => {
-  const { invoices, categories, clients, stats } = useData();
+  const { invoices, categories, clients, services, stats } = useData();
 
   const reportStats = useMemo(() => {
     const validInvoices = invoices.filter(i => i.type === 'facture' && !i.archived);
@@ -67,38 +67,49 @@ const Reports = () => {
     });
   }, [invoices]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const categoryDistribution = useMemo(() => {
     const data = categories.map(cat => {
       const total = invoices
-        .filter(inv => !inv.archived)
+        .filter(inv => !inv.archived && inv.type === 'facture')
         .flatMap(inv => inv.items)
         .filter(item => {
-          // Simplification pour l'exemple : on pourrait lier via le service
-          return true; 
+          const service = services.find(s => s.id === item.serviceId);
+          return service?.categorieId === cat.id;
         })
         .reduce((sum, item) => sum + item.montant, 0);
       return { name: cat.nom.split(' ')[0], value: total };
     }).filter(d => d.value > 0);
     
     return data.length > 0 ? data : [{ name: 'Aucun', value: 1 }];
-  }, [invoices, categories]);
+  }, [invoices, categories, services]);
 
   return (
     <div className="space-y-8 pb-12">
-      <PageHeader 
-        title="Rapports Analytiques" 
-        description="Analyse approfondie des performances d'Apress Mali"
-        action={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Calendar className="h-4 w-4 mr-2" /> Période
-            </Button>
-            <Button size="sm">
-              <Download className="h-4 w-4 mr-2" /> Exporter PDF
-            </Button>
-          </div>
-        }
-      />
+      <div className="no-print">
+        <PageHeader 
+          title="Rapports Analytiques" 
+          description="Analyse approfondie des performances d'Apress Mali"
+          action={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="hidden md:flex">
+                <Calendar className="h-4 w-4 mr-2" /> Période
+              </Button>
+              <Button size="sm" onClick={handlePrint}>
+                <Download className="h-4 w-4 mr-2" /> Exporter PDF
+              </Button>
+            </div>
+          }
+        />
+      </div>
+
+      <div className="print:block hidden mb-8 text-center border-b pb-6">
+        <h1 className="text-3xl font-black uppercase tracking-tighter">Rapport d'Activité - Apress Mali</h1>
+        <p className="text-muted-foreground font-bold">Généré le {new Date().toLocaleDateString('fr-FR')}</p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="glass-card overflow-hidden group">

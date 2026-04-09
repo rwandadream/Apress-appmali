@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Mail, Phone, MapPin, Trash2, Building2, ExternalLink, TrendingUp, CreditCard } from "lucide-react";
+import { Plus, Search, Mail, Phone, MapPin, Trash2, Building2, ExternalLink, TrendingUp, CreditCard, Pencil } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useData } from "@/contexts/DataContext";
+import { useData, Client } from "@/contexts/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -26,10 +27,11 @@ const clientSchema = z.object({
 type ClientFormValues = z.infer<typeof clientSchema>;
 
 const Clients = () => {
-  const { clients, invoices, addClient, archiveItem } = useData();
+  const { clients, invoices, addClient, updateClient, archiveItem } = useData();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
@@ -37,10 +39,34 @@ const Clients = () => {
   });
 
   const onSubmit = (data: ClientFormValues) => {
-    addClient(data);
-    toast({ title: "Client ajouté", description: `${data.nom} a été ajouté avec succès.` });
+    if (editingClient) {
+      updateClient(editingClient.id, data);
+      toast({ title: "Client mis à jour", description: `${data.nom} a été modifié avec succès.` });
+    } else {
+      addClient(data);
+      toast({ title: "Client ajouté", description: `${data.nom} a été ajouté avec succès.` });
+    }
     form.reset();
+    setEditingClient(null);
     setDialogOpen(false);
+  };
+
+  const handleEdit = (client: Client) => {
+    setEditingClient(client);
+    form.reset({
+      nom: client.nom,
+      email: client.email,
+      telephone: client.telephone,
+      adresse: client.adresse,
+      secteur: client.secteur,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingClient(null);
+    form.reset({ nom: "", email: "", telephone: "", adresse: "", secteur: "" });
+    setDialogOpen(true);
   };
 
   const clientStats = useMemo(() => {
@@ -67,15 +93,20 @@ const Clients = () => {
         title="Annuaire Clients"
         description={`${clients.filter(c => !c.archived).length} partenaires commerciaux actifs`}
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditingClient(null);
+          }}>
             <DialogTrigger asChild>
-              <Button className="shadow-lg shadow-primary/20">
+              <Button onClick={handleOpenAdd} className="shadow-lg shadow-primary/20">
                 <Plus className="h-4 w-4 mr-2" /> Nouveau client
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black">Ajouter un partenaire</DialogTitle>
+                <DialogTitle className="text-2xl font-black">
+                  {editingClient ? "Modifier le partenaire" : "Ajouter un partenaire"}
+                </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
@@ -137,7 +168,7 @@ const Clients = () => {
                     )}
                   />
                   <Button type="submit" className="w-full h-12 font-bold shadow-lg shadow-primary/20">
-                    Enregistrer le client
+                    {editingClient ? "Mettre à jour" : "Enregistrer le client"}
                   </Button>
                 </form>
               </Form>
@@ -163,7 +194,15 @@ const Clients = () => {
           const stats = clientStats.find(s => s.id === client.id);
           return (
             <Card key={client.id} className="glass-card group overflow-hidden border-border/50 hover:border-primary/50 transition-all hover:shadow-xl hover:-translate-y-1 animate-fade-in relative">
-              <div className="absolute top-0 right-0 p-2">
+              <div className="absolute top-0 right-0 p-2 flex gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-primary/30 hover:text-primary hover:bg-primary/10 rounded-full transition-all"
+                  onClick={() => handleEdit(client)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button 
@@ -205,11 +244,11 @@ const Clients = () => {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
                     <Mail className="h-4 w-4 text-primary/50" />
-                    <span className="truncate font-medium">{client.email}</span>
+                    <a href={`mailto:${client.email}`} className="truncate font-medium hover:text-primary transition-colors">{client.email}</a>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
                     <Phone className="h-4 w-4 text-primary/50" />
-                    <span className="font-medium">{client.telephone}</span>
+                    <a href={`tel:${client.telephone}`} className="font-medium hover:text-primary transition-colors">{client.telephone}</a>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
                     <MapPin className="h-4 w-4 text-primary/50" />
@@ -237,8 +276,10 @@ const Clients = () => {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full rounded-xl gap-2 font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                  Voir l'historique <ExternalLink className="h-3 w-3" />
+                <Button asChild variant="outline" className="w-full rounded-xl gap-2 font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                  <Link to={`/invoices?search=${client.nom}`}>
+                    Voir l'historique <ExternalLink className="h-3 w-3" />
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
