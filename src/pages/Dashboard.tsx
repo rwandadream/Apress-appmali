@@ -130,8 +130,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Section - Mobile Friendly Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Chiffre d'affaires"
           value={`${safeStats.totalFacture.toLocaleString()} FCFA`}
@@ -150,7 +150,7 @@ const Dashboard = () => {
           title="Reste à percevoir"
           value={`${safeStats.resteARecouvrer.toLocaleString()} FCFA`}
           icon={Clock}
-          trend={{ value: "Factures en attente", isNeutral: true }}
+          trend={{ value: "En attente", isNeutral: true }}
           onClick={() => navigate("/invoices")}
         />
         <StatCard
@@ -162,7 +162,7 @@ const Dashboard = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-full overflow-hidden">
         <Card className="lg:col-span-2 glass-card border-slate-100 shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
