@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useData, Invoice } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatCurrency, formatDate, exportToCSV, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, exportToCSV, cn, calculateInvoiceTotals } from "@/lib/utils";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -107,6 +107,9 @@ const Invoices = () => {
               ) : (
                 filtered.map((inv) => {
                   const cfg = statusConfig[inv.status as keyof typeof statusConfig];
+                  // Recalcul du total pour assurer la cohérence visuelle
+                  const { montantTTC } = calculateInvoiceTotals(inv.items, inv.tva);
+                  
                   return (
                     <TableRow key={inv.id} className="hover:bg-muted/5 transition-colors">
                       <TableCell className="font-mono font-bold text-xs text-primary whitespace-nowrap">
@@ -117,7 +120,7 @@ const Invoices = () => {
                         <div className="text-[10px] text-muted-foreground">{formatDate(inv.date)}</div>
                       </TableCell>
                       <TableCell className="text-right font-black text-sm whitespace-nowrap">
-                        {formatCurrency(inv.montantTTC)}
+                        {formatCurrency(montantTTC)}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={cfg?.variant} className={cn("text-[9px] uppercase font-black px-2 py-0.5", cfg?.className)}>

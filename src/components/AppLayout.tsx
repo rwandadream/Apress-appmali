@@ -22,7 +22,7 @@ const AppLayout = () => {
       {/* SIDEBAR : Utilisation de classes CSS fixes pour éviter les sauts de rendu */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out no-print",
           isMobile 
             ? (mobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full w-72") 
             : (collapsed ? "w-20" : "w-72")
@@ -38,7 +38,7 @@ const AppLayout = () => {
       {/* OVERLAY MOBILE : Purement CSS pour la réactivité */}
       {isMobile && mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-300"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-300 no-print"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -50,7 +50,7 @@ const AppLayout = () => {
           !isMobile && (collapsed ? "pl-20" : "pl-72")
         )}
       >
-        <header className="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0 z-30 no-print">
           <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 

@@ -1,33 +1,66 @@
-/* Print styles for invoices */
+/* PRINT SYSTEM - EXPERT OPTIMIZATION */
 @media print {
-  aside, 
-  header, 
-  nav, 
-  button, 
-  .no-print,
-  [role="dialog"] > button {
+  /* Hide EVERYTHING by default */
+  html, body, #root, .flex, aside, header, nav, main, .no-print {
     display: none !important;
-  }
-
-  body, #root {
-    background: white !important;
-    padding: 0 !important;
     margin: 0 !important;
-  }
-
-  [role="dialog"] {
-    position: static !important;
-    width: 100% !important;
-    max-width: none !important;
-    border: none !important;
-    box-shadow: none !important;
     padding: 0 !important;
-    transform: none !important;
+    background: white !important;
   }
 
-  /* Force display of the dialog content during print */
-  .fixed {
-    position: static !important;
+  /* Show ONLY the invoice container */
+  #root .invoice-print-container, 
+  #root .invoice-print-container * {
+    display: block !important;
+    visibility: visible !important;
   }
+
+  /* Specific table and flex fixes for print */
+  .invoice-print-container .flex { display: flex !important; }
+  .invoice-print-container table { display: table !important; }
+  .invoice-print-container thead { display: table-header-group !important; }
+  .invoice-print-container tbody { display: table-row-group !important; }
+  .invoice-print-container tr { display: table-row !important; }
+  .invoice-print-container td, .invoice-print-container th { display: table-cell !important; }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 0; /* Let the component handle internal padding */
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove browser headers/footers (URL, Date) */
+  .invoice-print-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    background: white !important;
+    z-index: 9999;
+  }
+
+  /* Force background colors */
+  .bg-slate-900 { background-color: #0f172a !important; color: white !important; }
+  .bg-slate-50 { background-color: #f8fafc !important; }
+  .bg-slate-100 { background-color: #f1f5f9 !important; }
+  .text-white { color: white !important; }
+  .border-slate-900 { border-color: #0f172a !important; }
+
+  /* Avoid splitting rows */
+  tr { page-break-inside: avoid !important; }
 }
 
+/* Screen adjustments for the print component (preview mode) */
+@media screen {
+  .invoice-print-container {
+    box-shadow: 0 0 50px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+  }
+}

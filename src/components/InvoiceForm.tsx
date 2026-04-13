@@ -268,7 +268,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                         name={`items.${index}.categoryId`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1">
+                            <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1 text-muted-foreground dark:text-slate-300">
                               <Tag className="h-3 w-3" /> 1. Catégorie
                             </FormLabel>
                             <Select 
@@ -281,7 +281,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                               value={field.value}
                             >
                               <FormControl>
-                                <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Choisir catégorie..." /></SelectTrigger>
+                                <SelectTrigger className="h-10 bg-white dark:bg-slate-900 border-border"><SelectValue placeholder="Choisir catégorie..." /></SelectTrigger>
                               </FormControl>
                               <SelectContent>
                                 {categories.map((cat) => (
@@ -299,7 +299,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                         name={`items.${index}.serviceId`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1">
+                            <FormLabel className="text-[10px] font-black uppercase flex items-center gap-1 text-muted-foreground dark:text-slate-300">
                               <Briefcase className="h-3 w-3" /> 2. Prestation
                             </FormLabel>
                             <Select 
@@ -312,7 +312,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                               value={field.value}
                             >
                               <FormControl>
-                                <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Choisir service..." /></SelectTrigger>
+                                <SelectTrigger className="h-10 bg-white dark:bg-slate-900 border-border"><SelectValue placeholder="Choisir service..." /></SelectTrigger>
                               </FormControl>
                               <SelectContent>
                                 {services
@@ -332,11 +332,11 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                         name={`items.${index}.quantite`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[10px] font-black uppercase">Qté</FormLabel>
+                            <FormLabel className="text-[10px] font-black uppercase text-muted-foreground dark:text-slate-300">Qté</FormLabel>
                             <FormControl>
                               <Input 
                                 type="number" 
-                                className="h-10 bg-white" 
+                                className="h-10 bg-white dark:bg-slate-900 border-border" 
                                 {...field} 
                                 onChange={e => field.onChange(parseInt(e.target.value) || 0)} 
                               />
@@ -351,11 +351,11 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData }: InvoiceFormProps) => {
                         name={`items.${index}.prixUnitaire`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[10px] font-black uppercase">P.U. (FCFA)</FormLabel>
+                            <FormLabel className="text-[10px] font-black uppercase text-muted-foreground dark:text-slate-300">P.U. (FCFA)</FormLabel>
                             <FormControl>
                               <Input 
                                 type="number" 
-                                className="h-10 font-bold bg-white" 
+                                className="h-10 font-bold bg-white dark:bg-slate-900 border-border" 
                                 placeholder="Prix..."
                                 value={field.value === 0 ? "" : field.value}
                                 onChange={e => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}

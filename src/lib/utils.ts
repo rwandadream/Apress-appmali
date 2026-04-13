@@ -39,9 +39,54 @@ export interface CalculatedTotals {
   montantTTC: number;
 }
 
+export function numberToWords(amount: number): string {
+  const units = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"];
+  const teens = ["dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
+  const tens = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingts", "quatre-vingt-dix"];
+
+  if (amount === 0) return "zéro";
+
+  function convert(n: number): string {
+    if (n < 10) return units[n];
+    if (n < 20) return teens[n - 10];
+    if (n < 100) {
+      if (n === 71) return "soixante-et-onze";
+      if (n === 81) return "quatre-vingt-un";
+      if (n === 91) return "quatre-vingt-onze";
+      const ten = Math.floor(n / 10);
+      const unit = n % 10;
+      if (unit === 1 && ten < 8) return tens[ten] + "-et-" + units[unit];
+      return tens[ten] + (unit > 0 ? "-" + units[unit] : "");
+    }
+    if (n < 1000) {
+      const hundred = Math.floor(n / 100);
+      const rest = n % 100;
+      const hundredStr = hundred === 1 ? "cent" : units[hundred] + " cent" + (rest === 0 ? "s" : "");
+      return hundredStr + (rest > 0 ? " " + convert(rest) : "");
+    }
+    if (n < 1000000) {
+      const thousand = Math.floor(n / 1000);
+      const rest = n % 1000;
+      const thousandStr = thousand === 1 ? "mille" : convert(thousand) + " mille";
+      return thousandStr + (rest > 0 ? " " + convert(rest) : "");
+    }
+    return n.toString(); // Limite simplifiée pour l'exemple
+  }
+
+  return convert(amount).toUpperCase() + " FRANCS CFA";
+}
+
 export function calculateInvoiceTotals(items: { prixUnitaire: number; quantite: number }[], tvaTaux: number): CalculatedTotals {
-  const sousTotalHT = items.reduce((sum, item) => sum + (item.prixUnitaire * item.quantite), 0);
+  // Calcul du sous-total HT en arrondissant chaque ligne pour éviter les erreurs de précision
+  const sousTotalHT = items.reduce((sum, item) => {
+    const ligneTotal = Math.round(item.prixUnitaire * item.quantite);
+    return sum + ligneTotal;
+  }, 0);
+
+  // Calcul de la TVA arrondi à l'unité (standard FCFA)
   const tvaMontant = Math.round(sousTotalHT * (tvaTaux / 100));
+
+  // Le TTC doit être la somme exacte du HT et de la TVA calculés
   const montantTTC = sousTotalHT + tvaMontant;
   
   return {

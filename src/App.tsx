@@ -18,6 +18,8 @@ const Reports = lazy(() => import("@/pages/Reports"));
 const Clients = lazy(() => import("@/pages/Clients"));
 const Services = lazy(() => import("@/pages/Services"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
+const NewInvoice = lazy(() => import("@/pages/NewInvoice"));
+const InvoiceDetail = lazy(() => import("@/pages/InvoiceDetail"));
 const Payments = lazy(() => import("@/pages/Payments"));
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
@@ -57,6 +59,8 @@ const App = () => (
                     <Route path="/clients" element={<Clients />} />
                     <Route path="/services" element={<Services />} />
                     <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/invoices/new" element={<NewInvoice />} />
+                    <Route path="/invoices/:id" element={<InvoiceDetail />} />
                     <Route path="/payments" element={<Payments />} />
                     <Route path="/users" element={<ProtectedRoute requireSuperviseur><UsersPage /></ProtectedRoute>} />
                     <Route path="/activity" element={<ProtectedRoute requireSuperviseur><ActivityPage /></ProtectedRoute>} />

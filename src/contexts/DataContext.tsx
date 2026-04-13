@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { generateId } from "@/lib/utils";
+import { generateId, calculateInvoiceTotals } from "@/lib/utils";
 
 export interface Category {
   id: string;
@@ -164,8 +164,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : initialServices;
   });
 
-  const [clients, setClients] = useState<Client[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || "[]"));
-  const [invoices, setInvoices] = useState<Invoice[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || "[]"));
+  const [clients, setClients] = useState<Client[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: "client-1",
+        nom: "MINISTERE DE LA SANTE",
+        email: "contact@sante.gov.ml",
+        telephone: "20 22 33 44",
+        adresse: "Bamako Koulouba",
+        secteur: "Public"
+      }
+    ];
+  });
+
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.INVOICES);
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: "9d0bf94d-d204-4451-a32c-953023d79858",
+        numero: "FAC-2026-001",
+        clientId: "client-1",
+        clientName: "MINISTERE DE LA SANTE",
+        date: new Date().toISOString().split('T')[0],
+        echeance: new Date(Date.now() + 15*24*60*60*1000).toISOString().split('T')[0],
+        items: [
+          { serviceId: "s1", serviceName: "La prise en charge administrative du personnel", quantite: 1, prixUnitaire: 150000, montant: 150000 }
+        ],
+        sousTotal: 150000,
+        tva: 18,
+        tvaMontant: 27000,
+        montantTTC: 177000,
+        paye: 0,
+        status: "non_payée",
+        type: "facture",
+        paymentMethod: "Virement Bancaire",
+        paymentReference: "MARCHE N°001/MS"
+      }
+    ];
+  });
   const [payments, setPayments] = useState<Payment[]>(() => JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS) || "[]"));
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -281,10 +320,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const stats = useMemo(() => {
     const valid = invoices.filter(i => i.type === "facture" && !i.archived);
-    const totalFacture = valid.reduce((acc, curr) => acc + curr.montantTTC, 0);
-    const totalEncaisse = valid.reduce((acc, curr) => acc + curr.paye, 0);
+    
+    // Pour une cohérence absolue, on recalcule les totaux de chaque facture à la volée 
+    // pour s'assurer que les stats globales reflètent la réalité des items
+    const validWithRecalculatedTotals = valid.map(inv => {
+      const totals = calculateInvoiceTotals(inv.items, inv.tva);
+      return { ...inv, montantTTC: totals.montantTTC };
+    });
+
+    const totalFacture = validWithRecalculatedTotals.reduce((acc, curr) => acc + curr.montantTTC, 0);
+    const totalEncaisse = validWithRecalculatedTotals.reduce((acc, curr) => acc + curr.paye, 0);
     const resteARecouvrer = totalFacture - totalEncaisse;
     const tauxRecouvrement = totalFacture > 0 ? (totalEncaisse / totalFacture) * 100 : 0;
+    
     return { totalFacture, totalEncaisse, resteARecouvrer, tauxRecouvrement };
   }, [invoices]);
 
