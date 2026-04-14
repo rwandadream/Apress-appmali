@@ -82,6 +82,7 @@ const InvoiceDetail = () => {
         <PageHeader 
           title={`Document ${invoice.numero}`} 
           description={isEditing ? "Modification du document" : "Consultation et impression"}
+          showBack
           action={
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)} className="gap-2">

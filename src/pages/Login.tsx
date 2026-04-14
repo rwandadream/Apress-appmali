@@ -62,8 +62,12 @@ const Login = () => {
 
       <div className="w-full max-w-[440px] px-6 relative z-10 animate-fade-in">
         <div className="flex flex-col items-center mb-10">
-          <div className="h-20 w-20 rounded-2xl bg-white p-2 shadow-2xl mb-6 flex items-center justify-center border-4 border-white/20 animate-float">
-            <img src={logo} alt="Apress Mali" className="h-14 w-14 object-contain" />
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white p-3 shadow-2xl mb-6 flex items-center justify-center border-4 border-white/10 animate-float overflow-hidden">
+            <img 
+              src={logo} 
+              alt="Apress Mali" 
+              className="w-full h-full object-contain transform scale-110" 
+            />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter text-center">Apress <span className="text-primary">Trace Connect</span></h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-2 animate-pulse-slow">Portail Professionnel Sécurisé</p>

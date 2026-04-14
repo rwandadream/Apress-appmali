@@ -37,7 +37,7 @@ const statusConfig = {
 };
 
 const Invoices = () => {
-  const { invoices, archiveItem, updateInvoiceStatus } = useData();
+  const { invoices, archiveItem, updateInvoice } = useData();
   const { isSuperviseur } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,13 +53,23 @@ const Invoices = () => {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [invoices, search]);
 
-  const handleStatusChange = (invoice: Invoice, status: Invoice["status"]) => {
-    // Logic to update status via updateInvoiceStatus
-    const amountToPay = status === "payée" ? (invoice.montantTTC - invoice.paye) : 0;
-    if (amountToPay > 0 || status === "non_payée") {
-       // In a real app, we'd have a specific setStatus function, 
-       // but here we can simulate it by updating the paye amount.
+  const handleStatusChange = (invoice: Invoice, newStatus: Invoice["status"]) => {
+    const { montantTTC } = calculateInvoiceTotals(invoice.items, invoice.tva);
+    let newPaye = invoice.paye;
+
+    if (newStatus === "payée") {
+      newPaye = montantTTC;
+    } else if (newStatus === "non_payée") {
+      newPaye = 0;
+    } else if (newStatus === "partielle" && invoice.status !== "partielle") {
+      // Si on passe à partielle manuellement, on met par défaut 50% si c'était à 0
+      if (invoice.paye === 0) newPaye = Math.round(montantTTC / 2);
     }
+
+    updateInvoice(invoice.id, { 
+      status: newStatus, 
+      paye: newPaye 
+    });
   };
 
   return (
@@ -123,9 +133,28 @@ const Invoices = () => {
                         {formatCurrency(montantTTC)}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={cfg?.variant} className={cn("text-[9px] uppercase font-black px-2 py-0.5", cfg?.className)}>
-                          {cfg?.label}
-                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="outline-none focus:ring-2 focus:ring-primary/20 rounded-full transition-all active:scale-95">
+                              <Badge variant={cfg?.variant} className={cn("text-[9px] uppercase font-black px-2 py-0.5 cursor-pointer hover:opacity-80", cfg?.className)}>
+                                {cfg?.label}
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="center" className="rounded-xl font-bold">
+                            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Changer le statut</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleStatusChange(inv, "payée")} className="text-success focus:text-success">
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Payée (100%)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(inv, "partielle")} className="text-warning focus:text-warning">
+                              <Clock className="h-4 w-4 mr-2" /> Moitié (50%)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(inv, "non_payée")} className="text-destructive focus:text-destructive">
+                              <ShieldAlert className="h-4 w-4 mr-2" /> Impayée (0%)
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">

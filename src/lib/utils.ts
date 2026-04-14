@@ -40,11 +40,11 @@ export interface CalculatedTotals {
 }
 
 export function numberToWords(amount: number): string {
+  if (amount === 0) return "ZÉRO FRANCS CFA";
+
   const units = ["", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf"];
   const teens = ["dix", "onze", "douze", "treize", "quatorze", "quinze", "seize", "dix-sept", "dix-huit", "dix-neuf"];
   const tens = ["", "dix", "vingt", "trente", "quarante", "cinquante", "soixante", "soixante-dix", "quatre-vingts", "quatre-vingt-dix"];
-
-  if (amount === 0) return "zéro";
 
   function convert(n: number): string {
     if (n < 10) return units[n];
@@ -61,7 +61,7 @@ export function numberToWords(amount: number): string {
     if (n < 1000) {
       const hundred = Math.floor(n / 100);
       const rest = n % 100;
-      const hundredStr = hundred === 1 ? "cent" : units[hundred] + " cent" + (rest === 0 ? "s" : "");
+      const hundredStr = hundred === 1 ? "cent" : units[hundred] + " cent";
       return hundredStr + (rest > 0 ? " " + convert(rest) : "");
     }
     if (n < 1000000) {
@@ -70,7 +70,13 @@ export function numberToWords(amount: number): string {
       const thousandStr = thousand === 1 ? "mille" : convert(thousand) + " mille";
       return thousandStr + (rest > 0 ? " " + convert(rest) : "");
     }
-    return n.toString(); // Limite simplifiée pour l'exemple
+    if (n < 1000000000) {
+      const million = Math.floor(n / 1000000);
+      const rest = n % 1000000;
+      const millionStr = million === 1 ? "un million" : convert(million) + " millions";
+      return millionStr + (rest > 0 ? " " + convert(rest) : "");
+    }
+    return n.toString();
   }
 
   return convert(amount).toUpperCase() + " FRANCS CFA";
