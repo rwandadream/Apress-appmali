@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 // Lazy loading remaining components
 const Reports = lazy(() => import("@/pages/Reports"));
 const Clients = lazy(() => import("@/pages/Clients"));
+const ClientCabinet = lazy(() => import("@/pages/ClientCabinet"));
 const Services = lazy(() => import("@/pages/Services"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const NewInvoice = lazy(() => import("@/pages/NewInvoice"));
@@ -57,6 +58,7 @@ const App = () => (
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/clients" element={<Clients />} />
+                    <Route path="/clients/:id/cabinet" element={<ClientCabinet />} />
                     <Route path="/services" element={<Services />} />
                     <Route path="/invoices" element={<Invoices />} />
                     <Route path="/invoices/new" element={<NewInvoice />} />

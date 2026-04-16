@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Mail, Phone, MapPin, Trash2, Building2, ExternalLink, TrendingUp, CreditCard, Pencil } from "lucide-react";
+import { Plus, Search, Mail, Phone, MapPin, Trash2, Building2, ExternalLink, TrendingUp, CreditCard, Pencil, FolderOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useData, Client } from "@/contexts/DataContext";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ const clientSchema = z.object({
   telephone: z.string().min(8, "Numéro de téléphone invalide"),
   adresse: z.string().min(5, "Adresse trop courte"),
   secteur: z.string().min(2, "Secteur requis"),
+  type_client: z.enum(["contrat", "sans_contrat"]),
 });
 
 type ClientFormValues = z.infer<typeof clientSchema>;
@@ -30,12 +32,13 @@ const Clients = () => {
   const { clients, invoices, addClient, updateClient, archiveItem } = useData();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "contrat" | "sans_contrat">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { nom: "", email: "", telephone: "", adresse: "", secteur: "" },
+    defaultValues: { nom: "", email: "", telephone: "", adresse: "", secteur: "", type_client: "sans_contrat" },
   });
 
   const onSubmit = (data: ClientFormValues) => {
@@ -59,13 +62,14 @@ const Clients = () => {
       telephone: client.telephone,
       adresse: client.adresse,
       secteur: client.secteur,
+      type_client: client.type_client || "sans_contrat",
     });
     setDialogOpen(true);
   };
 
   const handleOpenAdd = () => {
     setEditingClient(null);
-    form.reset({ nom: "", email: "", telephone: "", adresse: "", secteur: "" });
+    form.reset({ nom: "", email: "", telephone: "", adresse: "", secteur: "", type_client: "sans_contrat" });
     setDialogOpen(true);
   };
 
@@ -79,13 +83,15 @@ const Clients = () => {
     });
   }, [clients, invoices]);
 
-  const filteredClients = clients.filter(c => 
-    !c.archived && (
-    c.nom.toLowerCase().includes(search.toLowerCase()) || 
-    c.email.toLowerCase().includes(search.toLowerCase()) ||
-    c.secteur.toLowerCase().includes(search.toLowerCase())
-    )
-  );
+  const filteredClients = clients.filter(c => {
+    const matchesSearch = !c.archived && (
+      c.nom.toLowerCase().includes(search.toLowerCase()) || 
+      c.email.toLowerCase().includes(search.toLowerCase()) ||
+      c.secteur.toLowerCase().includes(search.toLowerCase())
+    );
+    const matchesFilter = filterType === "all" || c.type_client === filterType;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div className="space-y-8 pb-8">
@@ -110,17 +116,40 @@ const Clients = () => {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-                  <FormField
-                    control={form.control}
-                    name="nom"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-bold">Nom de l'entreprise</FormLabel>
-                        <FormControl><Input placeholder="Ex: APM Logistique" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="nom"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-bold">Nom de l'entreprise</FormLabel>
+                          <FormControl><Input placeholder="Ex: APM Logistique" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="type_client"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-bold">Type de client</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir le type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="contrat">Sous contrat</SelectItem>
+                              <SelectItem value="sans_contrat">Sans contrat</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -181,11 +210,38 @@ const Clients = () => {
         <div className="relative w-full md:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Rechercher un client ou un secteur..." 
+            placeholder="Rechercher un client..." 
             className="pl-10 bg-muted/20 border-none focus-visible:ring-1" 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+
+        <div className="flex gap-2 bg-muted/30 p-1 rounded-lg">
+          <Button 
+            variant={filterType === "all" ? "default" : "ghost"} 
+            size="sm" 
+            onClick={() => setFilterType("all")}
+            className="rounded-md font-bold"
+          >
+            Tous
+          </Button>
+          <Button 
+            variant={filterType === "contrat" ? "default" : "ghost"} 
+            size="sm" 
+            onClick={() => setFilterType("contrat")}
+            className="rounded-md font-bold"
+          >
+            Contrat
+          </Button>
+          <Button 
+            variant={filterType === "sans_contrat" ? "default" : "ghost"} 
+            size="sm" 
+            onClick={() => setFilterType("sans_contrat")}
+            className="rounded-md font-bold"
+          >
+            Sans contrat
+          </Button>
         </div>
       </div>
 
@@ -234,53 +290,54 @@ const Clients = () => {
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div className="space-y-0.5">
-                    <h3 className="font-black text-lg tracking-tight group-hover:text-primary transition-colors">{client.nom}</h3>
-                    <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest">{client.secteur}</Badge>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-lg tracking-tight group-hover:text-primary transition-colors">{client.nom}</h3>
+                      <Badge variant={client.type_client === "contrat" ? "default" : "secondary"} className="text-[8px] h-4">
+                        {client.type_client === "contrat" ? "CONTRAT" : "HORS CONTRAT"}
+                      </Badge>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] uppercase font-bold tracking-widest">{client.secteur}</Badge>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-6 pt-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
-                    <Mail className="h-4 w-4 text-primary/50" />
-                    <a href={`mailto:${client.email}`} className="truncate font-medium hover:text-primary transition-colors">{client.email}</a>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/20 p-2 rounded-lg">
+                    <Mail className="h-3.5 w-3.5 text-primary/50" />
+                    <span className="truncate font-medium">{client.email}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
-                    <Phone className="h-4 w-4 text-primary/50" />
-                    <a href={`tel:${client.telephone}`} className="font-medium hover:text-primary transition-colors">{client.telephone}</a>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted/20 p-2 rounded-lg">
-                    <MapPin className="h-4 w-4 text-primary/50" />
-                    <span className="truncate font-medium">{client.adresse}</span>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/20 p-2 rounded-lg">
+                    <Phone className="h-3.5 w-3.5 text-primary/50" />
+                    <span className="font-medium">{client.telephone}</span>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/50 grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 py-3 border-y border-border/50">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" /> Total Facturé
-                    </p>
-                    <p className="font-black text-sm">{formatCurrency(stats?.totalFacture || 0)}</p>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Total Facturé</p>
+                    <p className="font-black text-xs">{formatCurrency(stats?.totalFacture || 0)}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
-                      <CreditCard className="h-3 w-3" /> Reste à payer
-                    </p>
-                    <p className={cn(
-                      "font-black text-sm",
-                      (stats?.resteAPayer || 0) > 0 ? "text-warning" : "text-success"
-                    )}>
+                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Reste à payer</p>
+                    <p className={cn("font-black text-xs", (stats?.resteAPayer || 0) > 0 ? "text-warning" : "text-success")}>
                       {formatCurrency(stats?.resteAPayer || 0)}
                     </p>
                   </div>
                 </div>
 
-                <Button asChild variant="outline" className="w-full rounded-xl gap-2 font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                  <Link to={`/invoices?search=${client.nom}`}>
-                    Voir l'historique <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button asChild className="w-full rounded-xl gap-2 font-bold bg-primary shadow-lg shadow-primary/20 transition-all h-9">
+                    <Link to={`/clients/${client.id}/cabinet`}>
+                      <FolderOpen className="h-4 w-4" /> Ouvrir Classeur
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" className="w-full rounded-xl gap-2 font-bold h-9 text-xs">
+                    <Link to={`/invoices?search=${client.nom}`}>
+                      Historique Factures <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );

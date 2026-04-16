@@ -16,6 +16,19 @@ export interface Service {
   archived?: boolean;
 }
 
+export interface AppDocument {
+  id: string;
+  clientId: string;
+  nom: string;
+  type: "inps" | "lettre" | "note_service" | "administratif";
+  annee?: number;
+  numero?: string;
+  type_fichier: "pdf" | "image";
+  fileId: string; // Référence vers IndexedDB ou Supabase Storage
+  dateAjout: string;
+  categorie_admin?: "nif" | "rccm" | "nina" | "compte_contribuable" | "autre";
+}
+
 export interface Client {
   id: string;
   nom: string;
@@ -24,6 +37,18 @@ export interface Client {
   adresse: string;
   secteur: string;
   archived?: boolean;
+  type_client: "contrat" | "sans_contrat";
+  entete: {
+    telephone: string;
+    email: string;
+    adresse: string;
+  };
+  documents: AppDocument[];
+  // Garder les anciens champs temporairement pour la compatibilité pendant la migration
+  notesService?: unknown[];
+  inps?: unknown[];
+  lettres?: unknown[];
+  dossierAdministratif?: unknown;
 }
 export interface InvoiceItem {
   serviceId: string;
@@ -153,6 +178,19 @@ const initialServices: Service[] = [
   { id: "s24", nom: "Entretien des climatisations", categorieId: "cat_ap", prix: 0, description: "" },
 ];
 
+const createEmptyCabinet = () => ({
+  notesService: [],
+  inps: [],
+  lettres: [{ annee: new Date().getFullYear(), documents: [] }],
+  dossierAdministratif: {
+    nif: null,
+    rccm: null,
+    nina: null,
+    compteContribuable: null,
+    autres: []
+  }
+});
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [categories, setCategories] = useState<Category[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
@@ -166,7 +204,107 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map((c: Client) => {
+        // Nouvelle structure unifiée
+        const documents: AppDocument[] = c.documents || [];
+
+        // Migration des anciens champs vers la nouvelle structure si nécessaire
+        if (documents.length === 0) {
+          // Migration Notes de Service
+          const oldNotes = (c as any).notesService;
+          if (Array.isArray(oldNotes)) {
+            oldNotes.forEach((doc: any) => {
+              documents.push({
+                id: doc.id,
+                clientId: c.id,
+                nom: doc.nom,
+                type: "note_service",
+                type_fichier: doc.fileType?.includes("pdf") ? "pdf" : "image",
+                fileId: doc.id, // Migration simplifiée
+                dateAjout: doc.dateAjout
+              });
+            });
+          }
+          // Migration INPS
+          const oldInps = (c as any).inps;
+          if (Array.isArray(oldInps)) {
+            oldInps.forEach((doc: any) => {
+              documents.push({
+                id: doc.id,
+                clientId: c.id,
+                nom: doc.nom,
+                type: "inps",
+                type_fichier: doc.fileType?.includes("pdf") ? "pdf" : "image",
+                fileId: doc.id,
+                dateAjout: doc.dateAjout,
+                annee: new Date(doc.dateAjout).getFullYear()
+              });
+            });
+          }
+          // Migration Lettres
+          const oldLettres = (c as any).lettres;
+          if (Array.isArray(oldLettres)) {
+            oldLettres.forEach((yearly: any) => {
+              yearly.documents?.forEach((doc: any) => {
+                documents.push({
+                  id: doc.id,
+                  clientId: c.id,
+                  nom: doc.nom,
+                  type: "lettre",
+                  type_fichier: doc.fileType?.includes("pdf") ? "pdf" : "image",
+                  fileId: doc.id,
+                  dateAjout: doc.dateAjout,
+                  annee: yearly.annee
+                });
+              });
+            });
+          }
+          // Migration Dossier Administratif
+          const oldAdmin = (c as any).dossierAdministratif;
+          if (oldAdmin) {
+            ["nif", "rccm", "nina", "compte_contribuable"].forEach(key => {
+              const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+              const doc = (oldAdmin as any)[camelKey];
+              if (doc) {
+                documents.push({
+                  id: doc.id,
+                  clientId: c.id,
+                  nom: doc.nom,
+                  type: "administratif",
+                  categorie_admin: key as any,
+                  type_fichier: doc.fileType?.includes("pdf") ? "pdf" : "image",
+                  fileId: doc.id,
+                  dateAjout: doc.dateAjout
+                });
+              }
+            });
+            if (Array.isArray(oldAdmin.autres)) {
+              oldAdmin.autres.forEach((doc: any) => {
+                documents.push({
+                  id: doc.id,
+                  clientId: c.id,
+                  nom: doc.nom,
+                  type: "administratif",
+                  categorie_admin: "autre",
+                  type_fichier: doc.fileType?.includes("pdf") ? "pdf" : "image",
+                  fileId: doc.id,
+                  dateAjout: doc.dateAjout
+                });
+              });
+            }
+          }
+        }
+        
+        return {
+          ...c,
+          type_client: c.type_client || "sans_contrat",
+          entete: c.entete || { telephone: c.telephone || "", email: c.email || "", adresse: c.adresse || "" },
+          documents
+        };
+      });
+    }
     return [
       {
         id: "client-1",
@@ -174,7 +312,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: "contact@sante.gov.ml",
         telephone: "20 22 33 44",
         adresse: "Bamako Koulouba",
-        secteur: "Public"
+        secteur: "Public",
+        type_client: "contrat",
+        entete: {
+          telephone: "20 22 33 44",
+          email: "contact@sante.gov.ml",
+          adresse: "Bamako Koulouba"
+        },
+        documents: []
       }
     ];
   });
@@ -234,7 +379,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateCategory = useCallback((id: string, updated: Partial<Category>) => setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c)), []);
   const addService = useCallback((s: Omit<Service, "id">) => setServices(prev => [...prev, { ...s, id: generateId() }]), []);
   const updateService = useCallback((id: string, updated: Partial<Service>) => setServices(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s)), []);
-  const addClient = useCallback((c: Omit<Client, "id">) => setClients(prev => [...prev, { ...c, id: generateId() }]), []);
+  
+  const addClient = useCallback((c: Omit<Client, "id">) => {
+    const newClient: Client = {
+      ...c,
+      id: generateId(),
+      type_client: c.type_client || "sans_contrat",
+      entete: c.entete || { telephone: c.telephone || "", email: c.email || "", adresse: c.adresse || "" },
+      documents: c.documents || []
+    };
+    setClients(prev => [...prev, newClient]);
+  }, []);
   const updateClient = useCallback((id: string, updated: Partial<Client>) => setClients(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c)), []);
 
   const addInvoice = useCallback((inv: Omit<Invoice, "id" | "numero">) => {

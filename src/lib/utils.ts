@@ -1,8 +1,44 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { AppDocument } from "@/contexts/DataContext";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+// Nouvelles fonctions pour le Classeur Client
+export function generateNoteNumber(documents: AppDocument[]) {
+  const year = new Date().getFullYear();
+  const notesThisYear = documents.filter(doc => 
+    doc.type === "note_service" && 
+    doc.numero?.startsWith(`NS-${year}`)
+  );
+  
+  const nextNumber = notesThisYear.length + 1;
+  return `NS-${year}-${String(nextNumber).padStart(3, '0')}`;
+}
+
+export function groupByYear(documents: AppDocument[]) {
+  const groups: { [year: number]: AppDocument[] } = {};
+  
+  documents.forEach(doc => {
+    const year = doc.annee || new Date(doc.dateAjout).getFullYear();
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(doc);
+  });
+  
+  return Object.entries(groups)
+    .sort(([yearA], [yearB]) => Number(yearB) - Number(yearA))
+    .map(([year, docs]) => ({
+      annee: Number(year),
+      documents: docs.sort((a, b) => new Date(b.dateAjout).getTime() - new Date(a.dateAjout).getTime())
+    }));
+}
+
+export function sortByDate(documents: AppDocument[]) {
+  return [...documents].sort((a, b) => 
+    new Date(b.dateAjout).getTime() - new Date(a.dateAjout).getTime()
+  );
 }
 
 export function generateId(): string {
